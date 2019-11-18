@@ -23,6 +23,13 @@ void InitialiseHardwareDrivers(void);
 
 
 //
+// Hardware driver tick
+// read the aDC values
+//
+void HWDriverTick(void);
+
+
+//
 // functions to get and set inductance and capacitance
 //
 void SetInductance(byte Value);             // inductance 0-255

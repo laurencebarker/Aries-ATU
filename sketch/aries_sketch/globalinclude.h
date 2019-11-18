@@ -32,7 +32,7 @@
 //
 // define this variable if a simulated VSWR value is to be generated for algorithm testing
 //
-#define CONDITIONAL_ALG_SIMVSWR 1
+//#define CONDITIONAL_ALG_SIMVSWR 1
 
 
 #endif      // file sentry

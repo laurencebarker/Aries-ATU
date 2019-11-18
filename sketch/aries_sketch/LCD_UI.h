@@ -30,4 +30,13 @@ void LCD_UI_Tick(void);
 //
 void LCU_UI_SetTuning(bool);
 
+
+//
+// set forward power and VSWR
+// VSWR is passed as 10*"real" VSWR, to allow insertion of 1 decimal place
+//
+void SetPwr(int Power);
+void SetVSWR(int VSWR);
+
+
 #endif

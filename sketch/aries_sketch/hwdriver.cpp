@@ -15,6 +15,7 @@
 #include "hwdriver.h"
 #include "iopins.h"
 #include "globalinclude.h"
+#include "LCD_UI.h"
 
 
 //
@@ -25,6 +26,7 @@ byte StoredCValue;                          // C=0-255
 bool StoredHiLoZ;                           // true if Lo impedance
 #define VVSWR_HIGH 100.0F                   // to avoid divide by zero
 #define VLINEVOLTSCALE 0.1074F              // convert ADC reading to volts
+float GVSWR;                                // calculated VSWR value
 
 
 //
@@ -101,6 +103,47 @@ bool GetHiLoZ(void)                         // true for low Z (relay=1)
 }
 
 
+//
+// Hardware driver tick
+// read the aDC values
+//
+void HWDriverTick(void)
+{
+  int FwdVoltReading, RevVoltReading;               // raw ADC samples
+  float Unit;                                       // converted measurement
+  float VFwd, VRev;                                 // forward, reverse line voltages
+  int Power, DisplayVSWR;                           // values for display
+  
+  FwdVoltReading = analogRead(VPINVSWR_FWD);        // read forward power sensor (actually line volts)
+  RevVoltReading = analogRead(VPINVSWR_REV);        // read reverse power sensor (actually line volts)
+  
+//
+// convert the raw measurements to "normal" units
+//
+  VFwd = (float)FwdVoltReading * VLINEVOLTSCALE;    // forward line RMS voltage
+  VRev = (float)RevVoltReading * VLINEVOLTSCALE;    // reverse line RMS voltage
+
+  Unit = VFwd * VFwd/50;                            // calculate power in 50 ohm line
+  Power = int(Unit);
+  SetPwr(Power);
+//
+// finally calculate VSWR
+// GVSWR stored as float
+//
+  if (VFwd != VRev)
+    GVSWR = (VFwd+VRev) / (VFwd - VRev);                 // VSWR
+  else
+    GVSWR = VVSWR_HIGH;                                  // unvalid result
+
+  if (GVSWR > VVSWR_HIGH)                                // clip at impossibly high value
+    GVSWR = VVSWR_HIGH;
+    
+  DisplayVSWR = (int)(GVSWR * 10.0);                     // 1 decimal place int 
+  SetVSWR(DisplayVSWR);
+}
+
+
+
 
 // 
 // function to return VSWR value
@@ -108,33 +151,9 @@ bool GetHiLoZ(void)                         // true for low Z (relay=1)
 //
 int GetVSWR(void)
 {
-  int FwdVoltReading, RevVoltReading;             // raw ADC samples
-  float Unit;                                     // converted measurement
-  float VFwd, VRev;                               // forward, reverse line voltages
   int VSWR;
-  
-  FwdVoltReading = analogRead(VPINVSWR_FWD);      // read forward power sensor (actually line volts)
-  RevVoltReading = analogRead(VPINVSWR_REV);      // read reverse power sensor (actually line volts)
-//
-// convert the raw measurements to "normal" units
-//
-  VFwd = (float)FwdVoltReading * VLINEVOLTSCALE;        // forward line RMS voltage
 
-  VRev = (float)RevVoltReading * VLINEVOLTSCALE;        // reverse line RMS voltage
-
-//
-// finally calculate VSWR
-//
-  if (VFwd != VRev)
-    Unit = (VFwd+VRev) / (VFwd - VRev);                 // VSWR
-  else
-    Unit = VVSWR_HIGH;                                  // unvalid result
-
-  if (Unit > VVSWR_HIGH)                                // clip at impossibly high value
-    Unit = VVSWR_HIGH;
-    
-  VSWR = (int)(Unit * 100.0);                           // 2 decimal place int 
-
+  VSWR =  int(GVSWR * 100.0);                    
 
 //
 // finally optional debug code: calculate a simulated VSWR value with a minimum at (VLTARGET, VCTARGET)  

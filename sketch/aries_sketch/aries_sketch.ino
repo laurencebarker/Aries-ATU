@@ -25,6 +25,10 @@
 // global variables
 //
 bool GTickTriggered;                  // true if a 16ms tick has been triggered
+int GAlgTickCount;
+
+#define VALGTICKSPERSTEP 8
+
 
 void SetupTimerForInterrupt(int Milliseconds)
 {
@@ -41,7 +45,7 @@ void SetupTimerForInterrupt(int Milliseconds)
 void setup() 
 {
   // put your setup code here, to run once:
-  Serial.begin(9600);                 // PC communication
+  Serial.begin(115200);               // PC communication
   Wire.begin();                       // I2C
   Wire.setClock(400000);
 
@@ -52,7 +56,7 @@ void setup()
   ConfigIOPins();
 
 //
-// initialise timer to give 2ms tick interrupt
+// initialise timer to give 16ms tick interrupt
 //
   SetupTimerForInterrupt(16);
 
@@ -72,8 +76,6 @@ void setup()
 // initialise algorithm
 //
   InitialiseAlgorithm();
-  FindFreqRow(54);
-  FindFreqRow(1);
 //
 // initialise CAT handler
 //
@@ -129,9 +131,17 @@ void loop()
     ScanParseSerial();
 
 //
-// algorithm tick
+// read VSWR, then algorithm tick
+// make very slow to start with!
 //
-    AlgorithmTick();
+if (--GAlgTickCount < 0)
+{
+  GAlgTickCount = VALGTICKSPERSTEP;
+  HWDriverTick();
+  AlgorithmTick();
+}
+else
+  GAlgTickCount--;
     
 //
 // UI tick, if conditionally included
@@ -139,9 +149,6 @@ void loop()
 #ifdef CONDITIONAL_LCD_UI
     LCD_UI_Tick();
 #endif
-
-  
-  
   }
 }
 

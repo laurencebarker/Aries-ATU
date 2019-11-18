@@ -85,6 +85,8 @@ byte GCurrentCMinRange;         // min sweep range for C tune
 byte GCurrentCMaxRange;         // max sweep range for C tune
 bool GCurrentZ;                 // current HighZ/LowZ value. True = HighZ
 EAlgorithmState GAlgState;      // sequencer state variable
+bool GIsEven;
+
 //
 // params of min VSWR found in an algorithm state
 //
@@ -295,6 +297,11 @@ void PrintSolution(void)
       break;
   }
   Serial.print(StateName);
+  if(GCurrentZ)
+    Serial.print ("HiZ;");
+  else
+    Serial.print ("LoZ;");
+  
   Serial.print("VSWR=");
   Serial.print(VSWRToPrint);
   Serial.print (" L=");

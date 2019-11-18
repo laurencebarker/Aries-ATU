@@ -1,8 +1,11 @@
 /////////////////////////////////////////////////////////////////////////
 //
-// Andromeda front panel controller by Laurence Barker G8NJJ
-// this sketch provides a knob and switch interface through USB and CAT
+// Aries ATU controller sketch by Laurence Barker G8NJJ
+// this sketch controls an L-match ATU network
+// with a CAT interface to connect to an HPSDR control program
+// copyright (c) Laurence Barker G8NJJ 2019
 //
+// the code is written for an Arduino Nano Every module
 //
 // CAT handler.cpp
 // this file holds the CAT handling code
