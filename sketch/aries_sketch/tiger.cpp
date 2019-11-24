@@ -67,9 +67,7 @@ SCATCommands GCATCommands[VNUMCATCMDS] =
   {"ZZZE", eNum, 0, 999, 3, false},                       // other encoder for fine tune L/C
   {"ZZOX", eBool, 0, 1, 1, false},                        // Tune success (from Arduino to PC)
   {"ZZOV", eBool, 0, 1, 1, false},                        // ATU enable (from PC to Arduino)
-  {"ZZZS", eNum, 0, 999, 3, false},                       // s/w version
-  {"ZZZH", eNum, 0, 99, 2, false},                        // h/w version
-  {"ZZZT", eNum, 0, 99, 2, false}                         // product ID
+  {"ZZZS", eNum, 0, 9999999, 7, false}                    // s/w version
 };
 
 
@@ -344,7 +342,7 @@ void MakeCATMessageNoParam(ECATCommands Cmd)
 //
 // make a CAT command with a numeric parameter
 //
-void MakeCATMessageNumeric(ECATCommands Cmd, int Param)
+void MakeCATMessageNumeric(ECATCommands Cmd, long Param)
 {
   byte CharCount;                  // character count to add
   unsigned long Divisor;           // initial divisor to convert to ascii

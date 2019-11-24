@@ -29,8 +29,6 @@ enum ECATCommands
   eZZOX,                          // Tune success (from Arduino to PC)
   eZZOV,                          // ATU enable (from PC to Arduino)
   eZZZS,                          // s/w version
-  eZZZH,                          // h/w version
-  eZZZT,                          // product ID
   eNoCommand                      // this is an exception condition
 };
 
@@ -95,7 +93,7 @@ void MakeCATMessageNoParam(ECATCommands Cmd);
 //
 // make a CAT command with a numeric parameter
 //
-void MakeCATMessageNumeric(ECATCommands Cmd, int Param);
+void MakeCATMessageNumeric(ECATCommands Cmd, long Param);
 
 //
 // make a CAT command with a bool parameter

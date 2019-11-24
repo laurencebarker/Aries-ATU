@@ -39,16 +39,7 @@ int ClipParameter(int Param, ECATCommands Cmd)
 
 
 
-//
-// function to send back a hardware version message
-//
-void MakeHardwareVersionMessage(void)
-{
-  int Version;
 
-  Version = HWVERSION;
-  MakeCATMessageNumeric(eZZZH,Version);
-}
 
 
 //
@@ -56,23 +47,14 @@ void MakeHardwareVersionMessage(void)
 //
 void MakeSoftwareVersionMessage(void)
 {
-  int Version;
-
-  Version = SWVERSION;
+  long Version;
+  Version = (PRODUCTID * 100000) + (HWVERSION*1000) + SWVERSION;
+  
+//  Version = SWVERSION;
   MakeCATMessageNumeric(eZZZS,Version);
 }
 
 
-//
-// function to send back a product ID message
-//
-void MakeProductIDMessage(void)
-{
-  int Version;
-
-  Version = PRODUCTID;
-  MakeCATMessageNumeric(eZZZT,Version);
-}
 
 
 //
@@ -172,16 +154,8 @@ void HandleCATCommandNoParam(ECATCommands MatchedCAT)
 {
   switch(MatchedCAT)
   {
-    case eZZZH:                                                       // h/w version reply
-      MakeHardwareVersionMessage();
-      break;
-
     case eZZZS:                                                       // s/w version reply
       MakeSoftwareVersionMessage();
-      break;
-
-    case eZZZT:                                                       // RX2 stereo balance
-      MakeProductIDMessage();
       break;
   }
 }
