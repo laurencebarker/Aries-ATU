@@ -5,7 +5,7 @@
 // with a CAT interface to connect to an HPSDR control program
 // copyright (c) Laurence Barker G8NJJ 2019
 //
-// the code is written for an Arduino Nano Every module
+// the code is written for an Arduino Nano 33 IoT module
 //
 // LCD_UI.h: header for temporary LCD user interface
 /////////////////////////////////////////////////////////////////////////
@@ -25,6 +25,12 @@ void LCD_UI_Initialise(void);
 void LCD_UI_Tick(void);
 
 //
+// periodic timer tick for encoders
+// (this could be called more often than main tick)
+//
+void LCD_UI_EncoderTick(bool OddEncoder);
+
+//
 // set whether tuning or not
 // true if tune is in progress
 //
@@ -38,5 +44,10 @@ void LCU_UI_SetTuning(bool);
 void SetPwr(int Power);
 void SetVSWR(int VSWR);
 
+// debug
+void ShowFrequency(char* FreqString);
+void ShowTune(bool IsTune);
+void ShowAntenna(int Antenna);
+void ShowATUEnabled(bool IsEnabled);
 
 #endif

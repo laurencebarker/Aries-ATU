@@ -5,7 +5,7 @@
 // with a CAT interface to connect to an HPSDR control program
 // copyright (c) Laurence Barker G8NJJ 2019
 //
-// the code is written for an Arduino Nano Every module
+// the code is written for an Arduino Nano 33 IoT module
 //
 // tiger.h
 // this file holds the CAT parsing code
@@ -23,7 +23,8 @@ enum ECATCommands
 {
   eZZTU,                          // TUNE on/off (from PC to Arduino)
   eZZTV,                          // frequency change (from PC to Arduino)
-  eZZOC,                          // antenna change (from PC to Arduino)
+  eZZOA,                          // RX antenna change (from PC to Arduino)
+  eZZOC,                          // TX antenna change (from PC to Arduino)
   eZZOZ,                          // erase tuning solutions (from PC to Arduino)
   eZZZE,                          // other encoder for fine tune L/C
   eZZOX,                          // Tune success (from Arduino to PC)

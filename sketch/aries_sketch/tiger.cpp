@@ -5,7 +5,7 @@
 // with a CAT interface to connect to an HPSDR control program
 // copyright (c) Laurence Barker G8NJJ 2019
 //
-// the code is written for an Arduino Nano Every module
+// the code is written for an Arduino Nano 33 IoT module
 //
 // tiger.c
 // this file holds the CAT parsing code
@@ -57,12 +57,13 @@ long DivisorTable[] =
 // (not including the final eNoCommand)
 // string, type, min value, max value, #digits, true if always signed
 //
-#define VNUMCATCMDS 10
+#define VNUMCATCMDS 9
 SCATCommands GCATCommands[VNUMCATCMDS] = 
 {
   {"ZZTU", eBool, 0, 1, 1, false},                        // TUNE on/off (from PC to Arduino)
   {"ZZTV", eStr, 0, 0, 11, false},                        // TX frequency change (from PC to Arduino - treat as string)
-  {"ZZOC", eNum, 0, 3, 1, false},                         // antenna change (from PC to Arduino)
+  {"ZZOA", eNum, 0, 3, 1, false},                         // RX antenna change (from PC to Arduino)
+  {"ZZOC", eNum, 0, 3, 1, false},                         // TX antenna change (from PC to Arduino)
   {"ZZOZ", eNum, 0, 3, 1, false},                         // erase tuning solutions (from PC to Arduino)
   {"ZZZE", eNum, 0, 999, 3, false},                       // other encoder for fine tune L/C
   {"ZZOX", eBool, 0, 1, 1, false},                        // Tune success (from Arduino to PC)
@@ -141,11 +142,16 @@ void ScanParseSerial()
       for(Cntr=0; Cntr < ReadChars; Cntr++)
       {
         Ch=CATSERIAL.read();
-        *GCATWritePtr++ = Ch;
-        if (Ch == ';')
+        if(isControl(Ch))
+          GCATWritePtr = GCATInputBuffer;                   // point to start of buffer
+        else
         {
-          *GCATWritePtr++ = 0;
-          ParseCATCmd();     
+          *GCATWritePtr++ = Ch;
+          if (Ch == ';')
+          {
+            *GCATWritePtr++ = 0;
+            ParseCATCmd();     
+          }
         }
       }
     }

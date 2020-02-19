@@ -5,13 +5,14 @@
 // with a CAT interface to connect to an HPSDR control program
 // copyright (c) Laurence Barker G8NJJ 2019
 //
-// the code is written for an Arduino Nano Every module
+// the code is written for an Arduino Nano 33 IoT module
 //
 // algorithm.cpp:  tuning algorithm to find ATU tune solution
 /////////////////////////////////////////////////////////////////////////
 
 #include "hwdriver.h"
 #include "globalinclude.h"
+#include "cathandler.h"
 #include "LCD_UI.h"
 
 
@@ -86,6 +87,7 @@ byte GCurrentCMaxRange;         // max sweep range for C tune
 bool GCurrentZ;                 // current HighZ/LowZ value. True = HighZ
 EAlgorithmState GAlgState;      // sequencer state variable
 bool GIsEven;
+byte GFreqMHz;                  // frequency in MHz
 
 //
 // params of min VSWR found in an algorithm state
@@ -117,19 +119,19 @@ void InitialiseAlgorithm(void)
 // paramters is the required frequency (units of MHz)
 // step DOWN through the rows
 // 
-void FindFreqRow(byte Frequency)
+void FindFreqRow(byte FrequencyMHz)
 {
   int Row;               // row value being checked
 
   GFreqRow = 0;                                         // point to lowest freq by default
   for (Row=VNUMTUNEROWS-1; Row >= 0; Row--)                // step through all rows
   {
-    if(Frequency <= GTuneParamArray[Row].FreqMax)
+    if(FrequencyMHz <= GTuneParamArray[Row].FreqMax)
       GFreqRow = Row;
   }
 #ifdef CONDITIONAL_ALG_DEBUG
     Serial.print("F=");
-    Serial.print(Frequency);
+    Serial.print(FrequencyMHz);
     Serial.print(" MHz; row = ");
     Serial.print(GFreqRow);
     Serial.println();
@@ -337,6 +339,42 @@ void AssessTune(void)
 {
   if (!GIsQuickTune)                                            // if this was a full tune
   {
+    if (GMinVSWRFound < VSUCCESSVSWR)                           // if successful full tune
+    {
+      GAlgState = eAlgEEPROMWrite;                // found a solution
+      GCurrentC = MinVSWRCValue;                  // assert it to relays (in algorithmtick())
+      GCurrentL = MinVSWRLValue;
+
+      SetTuneResult(true, GCurrentL, GCurrentC, GCurrentZ);
+#ifdef CONDITIONAL_ALG_DEBUG
+      Serial.print("Full tune: successful best found: ");               
+      Serial.print("VSWR=");
+      Serial.print(GMinVSWRFound);
+      Serial.print (" L=");
+      Serial.print(MinVSWRLValue);
+      Serial.print (" C=");
+      Serial.print(MinVSWRCValue);
+      Serial.println();
+#endif
+    }
+    else                                          // unsuccessfyl full tune
+    {
+      SetNullSolution();                          // put ATU into bypass
+      DriveSolution();                            // send to hardware
+      GAlgState = eAlgIdle;                       // found a solution
+      SetTuneResult(false, GCurrentL, GCurrentC, GCurrentZ);
+  #ifdef CONDITIONAL_ALG_DEBUG
+      Serial.print("Full tune FAIL: unsuccessful best found: ");               
+      Serial.print("VSWR=");
+      Serial.print(GMinVSWRFound);
+      Serial.print (" L=");
+      Serial.print(MinVSWRLValue);
+      Serial.print (" C=");
+      Serial.print(MinVSWRCValue);
+      Serial.println();
+  #endif
+    }
+    
     GAlgState = eAlgEEPROMWrite;                // found a solution
     GCurrentC = MinVSWRCValue;                  // assert it to relays
     GCurrentL = MinVSWRLValue;

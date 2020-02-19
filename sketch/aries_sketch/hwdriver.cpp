@@ -5,17 +5,19 @@
 // with a CAT interface to connect to an HPSDR control program
 // copyright (c) Laurence Barker G8NJJ 2019
 //
-// the code is written for an Arduino Nano Every module
+// the code is written for an Arduino Nano 33 IoT module
 //
 // hwdriver.cpp:  drives to mechanical relays
+// using a serial shift register, accessed by SPUI
 /////////////////////////////////////////////////////////////////////////
 
 #include <Arduino.h>
-#include <Wire.h>
+#include <SPI.h>
 #include "hwdriver.h"
 #include "iopins.h"
 #include "globalinclude.h"
 #include "LCD_UI.h"
+#include "cathandler.h"
 
 
 //
@@ -23,37 +25,15 @@
 //
 byte StoredLValue;                          // L=0-255
 byte StoredCValue;                          // C=0-255
+byte StoredAntennaRXTRValue;                // RX setting: TR (bit 0) ant select (bits 2:1)
+byte StoredAntennaTXTRValue;                // TX setting: TR (bit 0) ant select (bits 2:1)
 bool StoredHiLoZ;                           // true if Lo impedance
 #define VVSWR_HIGH 100.0F                   // to avoid divide by zero
 #define VLINEVOLTSCALE 0.1074F              // convert ADC reading to volts
 float GVSWR;                                // calculated VSWR value
 
-
-//
-// defines for the MCP23017 address and registers within it
-// MCP23017 operated with IOCON.BANK=0
-//
-#define VMCPRELAYADDR 0x20          // MCP23017 address in I2C
-#define VGPIOAADDR 0x12             // GPIO A (column and LED out)
-#define VGPIOBADDR 0x13             // GPIO B (row input)
-#define VIODIRAADDR 0x0             // direction A
-#define VIODIRBADDR 0x1             // direction B
-#define VGPPUA 0x0C                 // pullup control for GPIO A
-#define VGPPUB 0x0D                 // pullup control for GPIO B
-
-
-//
-// function to write 8 bit value to MCP23017
-// returns register value
-//
-void WriteMCPRegister(byte ChipAddress, byte Address, byte Value)
-{
-  Wire.beginTransmission(ChipAddress);
-  Wire.write(Address);                                  // point to register
-  Wire.write(Value);                                    // write its data
-  Wire.endTransmission();
-}
-
+bool GResendSPI;                            // true if SPI data must be shifted again
+bool GSPIShiftInProgress;                   // true if SPI shify is currently happening
 
 
 
@@ -62,10 +42,50 @@ void WriteMCPRegister(byte ChipAddress, byte Address, byte Value)
 //
 void InitialiseHardwareDrivers(void)
 {
-  WriteMCPRegister(VMCPRELAYADDR, VIODIRAADDR, 0x00);                // make Direction register A = 00 (all output)
-  WriteMCPRegister(VMCPRELAYADDR, VIODIRBADDR, 0x00);                // make Direction register A = 00 (all output)
+  SPI.begin();
+  SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
   DriveSolution();
 }
+
+
+
+
+//
+// functions to set antenna (numbered 1-3)
+// for RX antenna, need to drive its setting out if we are in RX mode
+//
+void SetAntennaSPI(int Antenna, bool IsRXAnt)
+{
+  byte Ant = 2;                                         // set bit 1 for antenna 1
+  
+  if (Antenna == 2)
+    Ant = 4;                                            // set bit 2 for antenna 2
+  else if (Antenna == 3)
+    Ant = 8;                                            // set bit 3 for antenna 3
+
+  if(IsRXAnt)
+  {
+    StoredAntennaRXTRValue = (StoredAntennaRXTRValue & 0b11110000);       // erase ond ant, and TX bit off
+    StoredAntennaRXTRValue |= Ant;                                      // add in new ant
+//
+// either send new data to SPI, or queue a shift
+// (this handles a race condition: just coming out of TX, already sending old RX antenna data when new RX antenna setting arrives)
+// if PTT is pressed, RX ant will get set anyway when TX deasserted
+//
+    if ((GPTTPressed == false) && (!GSPIShiftInProgress))
+      DriveSolution();
+    else
+      GResendSPI = true;
+
+  }
+  else
+  {
+    StoredAntennaTXTRValue = (StoredAntennaTXTRValue & 0b11110000);       // erase old ant, and TX bit off
+    StoredAntennaTXTRValue |= Ant;                                      // add in new ant
+    StoredAntennaTXTRValue |= 0b1;                                      // add in TX bit
+  }
+}
+
 
 
 //
@@ -104,8 +124,18 @@ bool GetHiLoZ(void)                         // true for low Z (relay=1)
 
 
 //
+// set a null solution (essentially the same as "disable")
+//
+void SetNullSolution(void)
+{
+  StoredLValue = 0;
+  StoredCValue = 0;
+  StoredHiLoZ = false;
+}
+
+//
 // Hardware driver tick
-// read the aDC values
+// read the ADC values
 //
 void HWDriverTick(void)
 {
@@ -234,22 +264,53 @@ int GetInductanceValue(void)
 
 
 
-
+//
+// declare the data that will transfer by SPI to radio hardware
+// byte 0: Antenna select and T/R relay
+// byte 1: capacitors
+// byte 2: inductors
+// remember these get overwritten by incoming RX data whether we want it or not!
+//
+#define VNUMSHIFTBYTES 3
+byte GSPIShiftSettings[VNUMSHIFTBYTES];
 
 
 //
 // assert tuning solution to relays
-// send settings to I2C
-// active low relays for ebay relay driver board
+// send the current TR strobe, antenna, inductor and capacitor settings to SPI
+// there is apotential race condition that could lead to a "resend"
+// essentially this is just a big unidirectional shift register (we don't need the read reply)
+// we want SPI mode 0, MSB first, unknown rate
 //
 void DriveSolution(void)
 {
-  Wire.beginTransmission(VMCPRELAYADDR);
-  Wire.write(VGPIOAADDR);                                  // point to GPIOA register
-  Wire.write(StoredCValue^0xFF);                                // write its data
-  Wire.write(StoredLValue^0xFF);                                // write GPIOB data
-  Wire.endTransmission();
+  bool NotDoneShift = true;                                   // force at least one shift
 
+  GSPIShiftInProgress = true;
+  while(NotDoneShift || GResendSPI)
+  {
+// copy in data
+    if (GPTTPressed)
+      GSPIShiftSettings[0] = StoredAntennaTXTRValue;
+    else
+      GSPIShiftSettings[0] = StoredAntennaRXTRValue;
+    
+    GSPIShiftSettings[1] = StoredCValue;
+    GSPIShiftSettings[2] = StoredLValue;
+    
+    digitalWrite(VPINSERIALLOAD, LOW);         // be ready to give a rising edge after the transfer
+    SPI.transfer(GSPIShiftSettings, VNUMSHIFTBYTES);
+    digitalWrite(VPINSERIALLOAD, HIGH);         // rising edge to latch data after the transfer
+//
+// now see if we need to re-do
+// on first pass through loop, allow GResendSPI to cause loop to run again
+//
+    if(NotDoneShift == false)
+      GResendSPI = false;
+    else
+      NotDoneShift = false;
+  }
+  GSPIShiftInProgress = false;
   if(StoredHiLoZ == true)
     digitalWrite(VPINRELAYLOHIZ, HIGH);     // high Z
   else

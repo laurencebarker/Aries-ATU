@@ -5,7 +5,7 @@
 // with a CAT interface to connect to an HPSDR control program
 // copyright (c) Laurence Barker G8NJJ 2019
 //
-// the code is written for an Arduino Nano Every module
+// the code is written for an Arduino Nano 33 IoT module
 //
 // globalinclude.h: global include definitions
 /////////////////////////////////////////////////////////////////////////
@@ -28,7 +28,7 @@
 //
 // define this variable if algorithm debug messages are to be printed
 //
-#define CONDITIONAL_ALG_DEBUG 1
+//#define CONDITIONAL_ALG_DEBUG 1
 //
 // define this variable if a simulated VSWR value is to be generated for algorithm testing
 //

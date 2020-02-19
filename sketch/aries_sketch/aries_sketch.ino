@@ -5,9 +5,10 @@
 // with a CAT interface to connect to an HPSDR control program
 // copyright (c) Laurence Barker G8NJJ 2019
 //
-// the code is written for an Arduino Nano Every module
+// the code is written for an Arduino Nano 33 IoT module
 //
 // "main" file with setup() and loop()
+// 2ms timer tick driven for real time operation
 /////////////////////////////////////////////////////////////////////////
 //
 #include <Arduino.h>
@@ -19,33 +20,34 @@
 #include "algorithm.h"
 #include "tiger.h"
 #include "cathandler.h"
+#include <ZeroTimer.h>
 
 
 //
 // global variables
 //
-bool GTickTriggered;                  // true if a 16ms tick has been triggered
+// for heartbeat LED:
+bool ledOn = false;                         // true if status LED is lit
+byte Counter = 0;                           // tick counter for LED on/off
+
+int GTickCounter;                           // tick counter for 16ms tick
+
+bool GTickTriggered;                        // true if a 16ms tick has been triggered
 int GAlgTickCount;
 
 #define VALGTICKSPERSTEP 8
-
-
-void SetupTimerForInterrupt(int Milliseconds)
-{
-  int Count;
-
-  Count = Milliseconds * 250;
-  TCB0.CTRLB = TCB_CNTMODE_INT_gc; // Use timer compare mode  
-  TCB0.CCMP = Count; // Value to compare with. This is 1/5th of the tick rate, so 5 Hz
-  TCB0.INTCTRL = TCB_CAPT_bm; // Enable the interrupt
-  TCB0.CTRLA = TCB_CLKSEL_CLKTCA_gc | TCB_ENABLE_bm; // Use Timer A as clock, enable timer
-}
+#define VMAINTICKSPERTIMERTICK 8            // 8 counts of 2ms per 16ms main tick
 
 
 void setup() 
 {
   // put your setup code here, to run once:
-  Serial.begin(115200);               // PC communication
+  Serial.begin(9600);               // PC communication
+  while (!Serial)                   // wait for it to be ready 
+  {
+    ;
+  }
+
   Wire.begin();                       // I2C
   Wire.setClock(400000);
 
@@ -56,9 +58,9 @@ void setup()
   ConfigIOPins();
 
 //
-// initialise timer to give 16ms tick interrupt
+// initialise timer to give 2ms tick interrupt
 //
-  SetupTimerForInterrupt(16);
+  TC.startTimer(2000, TickHandler);             // 2ms tick: timer period is in microseconds
 
 //
 // initialise hardware drivers (relays etc)
@@ -80,26 +82,33 @@ void setup()
 // initialise CAT handler
 //
   InitCAT();
-
+  InitCATHandler();
 }
 
 
-
 //
-// periodic timer tick handler.
+// ZeroTimer interrupt handler
+// called every 2ms; invole main tick code every 8 ticks
+// light touch encoder scan every 2ms, and do a different encoder each tick
 //
-ISR(TCB0_INT_vect)
+void TickHandler(void)
 {
-  GTickTriggered = true;
-   // Clear interrupt flag
-   TCB0.INTFLAGS = TCB_CAPT_bm;
+  bool IsOdd = false;                           // call encoder tick with alternating odd/even setting
+  if(GTickCounter &1)
+    IsOdd = true;
+  LCD_UI_EncoderTick(IsOdd);
+//
+// now count ticks to 16ms tick
+//
+  if(GTickCounter == 0)
+  {
+    GTickCounter = VMAINTICKSPERTIMERTICK-1;
+    GTickTriggered = true;
+  }
+  else
+    GTickCounter--;
 }
 
-
-
-// for heartbeat LED:
-bool ledOn = false;
-byte Counter = 0;
 
 
 
@@ -118,9 +127,9 @@ void loop()
       Counter=31;
       ledOn = !ledOn;
       if (ledOn)
-        digitalWrite(LED_BUILTIN, HIGH); // Led on, off, on, off...
+        digitalWrite(VPINLED, HIGH); // Led on, off, on, off...
        else
-        digitalWrite(LED_BUILTIN, LOW);
+        digitalWrite(VPINLED, LOW);
     }
     else
       Counter--;
@@ -142,6 +151,11 @@ if (--GAlgTickCount < 0)
 }
 else
   GAlgTickCount--;
+
+//
+// THETIS interface tick
+//
+  CatHandlerTick();
     
 //
 // UI tick, if conditionally included
@@ -168,9 +182,19 @@ void ConfigIOPins(void)
   pinMode(VPINENCODER2B, INPUT_PULLUP);                 // normal encoder
 
   pinMode(VPINENCODER1PB, INPUT_PULLUP);                // normal pushbutton
-  pinMode(VPINPUSHBUTTONLOHIZ, INPUT_PULLUP);           // normal pushbutton
+  pinMode(VPINPUSHBUTTONTUNE, INPUT_PULLUP);            // normal pushbutton
   pinMode(VPINRELAYLOHIZ, OUTPUT);                      // relay o/p
+  pinMode(VPINSERIALLOAD, OUTPUT);                      // serial data latch o/p
   pinMode(VPINPTT, INPUT_PULLUP);                       // PTT input
+  pinMode(VPINLED, OUTPUT);                             // status LED (normal D13 ise used for SPI)
+
+  pinMode(VPINHWTUNECMD, INPUT_PULLUP);                 // hardwired TUNE command input
+  pinMode(VPINFREQCOUNT, INPUT);                        // frequency count input, from prescaler
+  pinMode (VPINCOUNTENABLE, OUTPUT);                    // count enable output
+  
+  
   digitalWrite(VPINRELAYLOHIZ, LOW);                    // deactivate relay
 
+// PTT interrupt needs to catch both edges so we can send SPI data for T/R relay and RX/TX antenna
+  attachInterrupt(VPINPTT, PttISR, CHANGE);
 }

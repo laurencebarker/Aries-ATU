@@ -3,7 +3,7 @@
 // this file provides a pushbutton debounce
 // copyright (c) Laurence Barker G8NJJ 2019
 //
-// the code is written for an Arduino Nano Every module
+// the code is written for an Arduino Nano 33 IoT module
 //
 // pushbutton.h: defines for PushbuttonDebounce class
 /////////////////////////////////////////////////////////////////////////

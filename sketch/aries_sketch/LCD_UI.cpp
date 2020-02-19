@@ -5,7 +5,7 @@
 // with a CAT interface to connect to an HPSDR control program
 // copyright (c) Laurence Barker G8NJJ 2019
 //
-// the code is written for an Arduino Nano Every module
+// the code is written for an Arduino Nano 33 IoT module
 //
 // LCD_UI.cpp: temporary LCD user interface
 /////////////////////////////////////////////////////////////////////////
@@ -37,8 +37,8 @@ byte GVoltDisplayCount;
 NoClickEncoder Encoder1(VPINENCODER1B, VPINENCODER1A, VENCODERDIVISOR, true);
 NoClickEncoder Encoder2(VPINENCODER2B, VPINENCODER2A, VENCODERDIVISOR, true);
 LiquidCrystal_I2C lcd(0x27, 20, 4); // Addr, columns, rows
-PushbuttonDebounce EncoderBtnDebounce(VPINENCODER1PB, 64);          // longpress to toggle low/high Z
-PushbuttonDebounce TuneBtnDebounce(VPINPUSHBUTTONLOHIZ);        // no longpress
+PushbuttonDebounce EncoderBtnDebounce(VPINENCODER1PB, 64);          // toggle coarse/fine; longpress to toggle low/high Z
+PushbuttonDebounce TuneBtnDebounce(VPINPUSHBUTTONTUNE);             // initiates tune; no longpress
 
 
 
@@ -136,6 +136,19 @@ unsigned char mysprintf(char *dest, int Value, bool AddDP)
 
 
 //
+// periodic timer tick for encoders
+// (this could be called more often than main tick)
+//
+void LCD_UI_EncoderTick(bool OddEncoder)
+{
+  if(OddEncoder)
+    Encoder1.service();     // update encoder states
+  else
+    Encoder2.service();
+}
+
+
+//
 // periodic timer tick
 //
 void LCD_UI_Tick(void)
@@ -145,12 +158,10 @@ void LCD_UI_Tick(void)
   EButtonEvent TunePressEvent;
   signed char LMovement, CMovement;
   int NewInductance, NewCapacitance;
-  
+
 //
-// update encoders and pushbuttons
+// update pushbuttons
 //
-  Encoder1.service();     // update encoder states
-  Encoder2.service();
   EncoderPressEvent = EncoderBtnDebounce.Tick();
   TunePressEvent = TuneBtnDebounce.Tick();
   
@@ -305,4 +316,36 @@ void SetVSWR(int VSWR)
 #ifdef CONDITIONAL_LCD_UI
   GIntVSWR = VSWR;
 #endif
+}
+
+
+// debug
+void ShowFrequency(char* FreqString)
+{
+  lcd.setCursor(5, 0);        //5rd column, first row
+  lcd.print(FreqString);
+}
+
+void ShowTune(bool IsTune)
+{
+  lcd.setCursor(14, 0);        //14th column, first row
+  if(IsTune)
+    lcd.print("T");
+  else
+    lcd.print("-");
+}
+
+void ShowAntenna(int Antenna)
+{
+  lcd.setCursor(16, 0);        //16th column, first row
+  lcd.print(Antenna);
+}
+
+void ShowATUEnabled(bool IsEnabled)
+{
+  lcd.setCursor(18, 0);        //18th column, first row
+  if(IsEnabled)
+    lcd.print("E");
+  else
+    lcd.print("-");
 }
