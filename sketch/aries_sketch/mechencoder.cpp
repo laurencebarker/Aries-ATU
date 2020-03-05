@@ -79,5 +79,3 @@ int16_t NoClickEncoder::getValue(void)
 
   return r;
 }
-
-

@@ -11,13 +11,13 @@
 #define __have__NoClickEncoder_h__
 
 
+#include "Arduino.h"
 #include <stdint.h>
 #if defined(__AVR__)
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
 #endif
-#include "Arduino.h"
 
 // ----------------------------------------------------------------------------
 
@@ -72,4 +72,3 @@ protected:
 // ----------------------------------------------------------------------------
 
 #endif // __have__NoClickEncoder_h__
-
