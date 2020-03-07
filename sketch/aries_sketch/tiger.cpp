@@ -42,12 +42,8 @@ long DivisorTable[] =
   1000000,                                              // millions
   10000000,                                             // 10 millions
   100000000,                                            // 100 millions
-  1000000000,                                           // 1000 millions
-  10000000000,                                          // 10000 millions
-  100000000000,                                         // 100000 millions
-  1000000000000,                                        // 1000000 millions
-  10000000000000                                        // 10000000 millions
-};
+  1000000000                                            // 1000 millions
+}; 
 
 
 
