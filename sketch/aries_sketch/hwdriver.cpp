@@ -28,13 +28,19 @@ byte StoredCValue;                          // C=0-255
 byte StoredAntennaRXTRValue;                // RX setting: TR (bit 0) ant select (bits 2:1)
 byte StoredAntennaTXTRValue;                // TX setting: TR (bit 0) ant select (bits 2:1)
 bool StoredHiLoZ;                           // true if Lo impedance
-#define VVSWR_HIGH 100.0F                   // to avoid divide by zero
-#define VLINEVOLTSCALE 0.1074F              // convert ADC reading to volts
 float GVSWR;                                // calculated VSWR value
 
 bool GResendSPI;                            // true if SPI data must be shifted again
 bool GSPIShiftInProgress;                   // true if SPI shify is currently happening
 
+#define VVSWR_HIGH 100.0F                   // to avoid divide by zero
+#define VLINEVOLTSCALE 0.0209F              // convert ADC reading to volts (3.3V VCC, 12 bit ADC)
+
+
+//
+// ADC averaging
+// if enabled, average 16 samples for each reading
+#define ENABLEADCAVERAGING 1
 
 
 //
@@ -44,6 +50,28 @@ void InitialiseHardwareDrivers(void)
 {
   SPI.begin();
   SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
+//
+// change ADC registers to speed it up
+//
+  ADC->CTRLB.reg &= 0b1111100011111111;           // clear prescaler bits
+  ADC->CTRLB.reg |= ADC_CTRLB_PRESCALER_DIV64;    // CK/64
+  ADC->SAMPCTRL.reg = 0x0;                        // no settling time per successive approximation sample
+
+  analogReadResolution(12);
+//
+// if ADC averaging enabled, make the ADC settings.
+// set AVGCTRL.SAMPLENUM to 0x4 (16 samples)
+// set CTRLB.RESSEL to 0x1 (averaging)
+// set AVGCTRL.ADJRES to 0x4 
+// see wiring_analog.c for details of register access
+#ifdef ENABLEADCAVERAGING
+  ADC->CTRLB.bit.RESSEL = 0x1;
+  ADC->AVGCTRL.bit.SAMPLENUM = 0x4;
+  ADC->AVGCTRL.bit.ADJRES = 0x4;
+#endif
+  while (ADC->STATUS.bit.SYNCBUSY == 1)           // same as sync_ADC()
+    ;
+
   DriveSolution();
 }
 
@@ -143,16 +171,19 @@ void HWDriverTick(void)
   float Unit;                                       // converted measurement
   float VFwd, VRev;                                 // forward, reverse line voltages
   int Power, DisplayVSWR;                           // values for display
-  
   FwdVoltReading = analogRead(VPINVSWR_FWD);        // read forward power sensor (actually line volts)
   RevVoltReading = analogRead(VPINVSWR_REV);        // read reverse power sensor (actually line volts)
-  
 //
 // convert the raw measurements to "normal" units
 //
   VFwd = (float)FwdVoltReading * VLINEVOLTSCALE;    // forward line RMS voltage
   VRev = (float)RevVoltReading * VLINEVOLTSCALE;    // reverse line RMS voltage
 
+  Serial.print("Vf=");
+  Serial.print(FwdVoltReading);
+  Serial.print(" Vr=");
+  Serial.println(RevVoltReading);
+  
   Unit = VFwd * VFwd/50;                            // calculate power in 50 ohm line
   Power = int(Unit);
   SetPwr(Power);

@@ -22,7 +22,7 @@
 
 #define VPINENCODER1PB 4              // encoder 1 pushbutton
 #define VPINPUSHBUTTONTUNE 5          // high/low Z pushbutton
-#define VPINRELAYLOHIZ 12             // relay for low/high impedance mode: logic 1 selects "low Z"
+#define VPINRELAYLOHIZ 8              // relay for low/high impedance mode: logic 1 selects "low Z" (note moved from pin 12)
 #define VPINPTT 10                    // PTT input. 0 = TX.  !will need to set an interrupt!
 #define VPINSERIALLOAD 6              // latch serial data output 
 #define VPINLED 7                     // status LED (note the normal D13 LED pin used for SPI)

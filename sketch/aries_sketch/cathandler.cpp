@@ -64,50 +64,57 @@ int GLocalSearch[] =
 
 
 //
+// EEPROM access test
+// perform a few reads and writes to verify EEPROM access works OK
+// 
+void EETest(void)
+{
+  byte WriteStatus, ReadStatus;
+  byte Cntr;
+//byte WriteData[]={255,255, 255, 255, 255};
+  byte WriteData[]={5,6,7,8,9};
+  byte ReadData[16];
+
+  Serial.println("Starting");
+  
+//  WriteStatus = myEEPROM.write(65536, WriteData, 5);
+
+  Serial.println("Reading address 0");
+  ReadStatus = myEEPROM.read(0, ReadData, 10);
+  for (Cntr=0; Cntr < 10; Cntr++)
+  {
+    Serial.print("addr: ");
+    Serial.print(Cntr);
+    Serial.print(" data = ");
+    Serial.println(ReadData[Cntr]);
+  }
+
+  Serial.println("Reading address 65536");
+  ReadStatus = myEEPROM.read(65536, ReadData, 10);
+
+  for (Cntr=0; Cntr < 10; Cntr++)
+  {
+    Serial.print("addr: ");
+    Serial.print(Cntr+65536);
+    Serial.print(" data = ");
+    Serial.println(ReadData[Cntr]);
+  }
+}
+
+
+
+//
 // initialise CATHandler
 // most of this is crude, early debug!
 //
 void InitCATHandler(void)
 {
-//  byte WriteStatus, ReadStatus;
-//  byte Cntr;
-//  byte WriteData[]={255,255, 255, 255, 255};
-//byte WriteData[]={0,1,2,3,4};
-//  byte ReadData[16];
-
-  
-  byte i2cStat = myEEPROM.begin(myEEPROM.twiClock100kHz);
+  byte i2cStat = myEEPROM.begin(myEEPROM.twiClock400kHz);
   if ( i2cStat != 0 ) 
   {
     Serial.println(F("I2C Problem"));
   }
-
-//  Serial.println("Starting");
-  
-//  WriteStatus = myEEPROM.write(65536, WriteData, 5);
-
-//  Serial.println("Reading address 0");
-//  ReadStatus = myEEPROM.read(0, ReadData, 10);
-
-//  for (Cntr=0; Cntr < 10; Cntr++)
-//  {
-//    Serial.print("addr: ");
-//    Serial.print(Cntr);
-//    Serial.print(" data = ");
-//    Serial.println(ReadData[Cntr]);
-//  }
-
-//  Serial.println("Reading address 65536");
-//  ReadStatus = myEEPROM.read(65536, ReadData, 10);
-
-//  for (Cntr=0; Cntr < 10; Cntr++)
-//  {
-//    Serial.print("addr: ");
-//    Serial.print(Cntr+65536);
-//    Serial.print(" data = ");
-//    Serial.println(ReadData[Cntr]);
-//  }
-  
+//  EETest();
 }
 
 
@@ -533,6 +540,17 @@ void HandleCATCommandStringParam(ECATCommands MatchedCAT, char* ParsedParam)
 
 
 //
+// tune hardwired input ISR handler
+// this triggers on falling edge, to trigger a "tune request"
+// we assume it to come from an FPGA source, so no bounce
+//
+void HWTuneISR(void)
+{
+  Serial.println("HW Tune");                                      // got tune request state from I/O pin
+}
+
+
+//
 // PTT ISR handler
 // this triggers on both edges, so we can set RX and TX antenna as well as ATU tune solution
 // we assume PTT to come from an FPGA source, so no bounce
@@ -543,7 +561,12 @@ void PttISR(void)
     GPTTPressed = true;                                      // got TX/RX state from I/O pin
   else
     GPTTPressed = false;                                     // got TX/RX state from I/O pin
-  
+
+  if(digitalRead(VPINPTT) == LOW)
+    Serial.println("PTT");                                      // got TX/RX state from I/O pin
+  else
+    Serial.println("no PTT");                                      // got TX/RX state from I/O pin
+ 
 //
 // either send new data to SPI, or queue a shift
 //  

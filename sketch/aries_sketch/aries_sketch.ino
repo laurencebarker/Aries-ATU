@@ -128,7 +128,7 @@ void loop()
       ledOn = !ledOn;
       if (ledOn)
         digitalWrite(VPINLED, HIGH); // Led on, off, on, off...
-       else
+      else
         digitalWrite(VPINLED, LOW);
     }
     else
@@ -197,4 +197,7 @@ void ConfigIOPins(void)
 
 // PTT interrupt needs to catch both edges so we can send SPI data for T/R relay and RX/TX antenna
   attachInterrupt(VPINPTT, PttISR, CHANGE);
+  
+// h/w tune interrupt needs to catch falling edge to initiate a tune request.
+  attachInterrupt(VPINHWTUNECMD, HWTuneISR, FALLING);
 }

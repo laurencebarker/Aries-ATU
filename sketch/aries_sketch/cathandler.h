@@ -34,6 +34,13 @@ void InitCATHandler(void);
 //
 void PttISR(void);
 
+//
+// tune hardwired input ISR handler
+// this triggers on falling edge, to trigger a "tune request"
+// we assume it to come from an FPGA source, so no bounce
+//
+void HWTuneISR(void);
+
 
 //
 // generate output messages for local control events
