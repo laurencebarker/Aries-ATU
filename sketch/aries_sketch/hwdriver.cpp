@@ -178,11 +178,13 @@ void HWDriverTick(void)
 //
   VFwd = (float)FwdVoltReading * VLINEVOLTSCALE;    // forward line RMS voltage
   VRev = (float)RevVoltReading * VLINEVOLTSCALE;    // reverse line RMS voltage
-
-  Serial.print("Vf=");
-  Serial.print(FwdVoltReading);
-  Serial.print(" Vr=");
-  Serial.println(RevVoltReading);
+  if (FwdVoltReading > 200)
+  {
+    Serial.print("Vf=");
+    Serial.print(FwdVoltReading);
+    Serial.print(" Vr=");
+    Serial.println(RevVoltReading);
+  }
   
   Unit = VFwd * VFwd/50;                            // calculate power in 50 ohm line
   Power = int(Unit);
@@ -191,7 +193,7 @@ void HWDriverTick(void)
 // finally calculate VSWR
 // GVSWR stored as float
 //
-  if (VFwd != VRev)
+  if (VFwd > VRev)
     GVSWR = (VFwd+VRev) / (VFwd - VRev);                 // VSWR
   else
     GVSWR = VVSWR_HIGH;                                  // unvalid result
