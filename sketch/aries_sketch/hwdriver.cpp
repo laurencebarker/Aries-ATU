@@ -178,6 +178,8 @@ void HWDriverTick(void)
 //
   VFwd = (float)FwdVoltReading * VLINEVOLTSCALE;    // forward line RMS voltage
   VRev = (float)RevVoltReading * VLINEVOLTSCALE;    // reverse line RMS voltage
+
+#ifdef CONDITIONAL_STREAM_ADCREADINGS
   if (FwdVoltReading > 200)
   {
     Serial.print("Vf=");
@@ -185,6 +187,7 @@ void HWDriverTick(void)
     Serial.print(" Vr=");
     Serial.println(RevVoltReading);
   }
+#endif
   
   Unit = VFwd * VFwd/50;                            // calculate power in 50 ohm line
   Power = int(Unit);

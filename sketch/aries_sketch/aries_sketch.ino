@@ -35,7 +35,7 @@ int GTickCounter;                           // tick counter for 16ms tick
 bool GTickTriggered;                        // true if a 16ms tick has been triggered
 int GAlgTickCount;
 
-#define VALGTICKSPERSTEP 8
+#define VALGTICKSPERSTEP 2
 #define VMAINTICKSPERTIMERTICK 8            // 8 counts of 2ms per 16ms main tick
 
 
@@ -49,7 +49,7 @@ void setup()
   }
 
   Wire.begin();                       // I2C
-  Wire.setClock(400000);
+  Wire.setClock(100000);              // slow to 100KHz for LCD
 
   delay(1000);
 //

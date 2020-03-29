@@ -231,6 +231,7 @@ void LCD_UI_Tick(void)
 //  
   if (GTuneChanged)
   {
+    lcd.clear();
     lcd.setCursor(7,3);            // low/high Z setting
     if(IsHighZ)
       lcd.print("Hi Z");
@@ -241,19 +242,19 @@ void LCD_UI_Tick(void)
     lcd.print("L=           ");
     lcd.setCursor(2, 0);        //3rd column, first row
     lcd.print(GLValue);
-    NewInductance=GetInductanceValue();
-    lcd.print(" ");
-    lcd.print(NewInductance);
-    lcd.print("nH");
+//    NewInductance=GetInductanceValue();
+//    lcd.print(" ");
+//    lcd.print(NewInductance);
+//    lcd.print("nH");
 
     lcd.setCursor(0, 1);        //1st column, second row for capacitance
     lcd.print("C=           ");
     lcd.setCursor(2, 1);        //1st column, second row
     lcd.print(GCValue);
-    NewCapacitance=GetCapacitanceValue();
-    lcd.print(" ");
-    lcd.print(NewCapacitance);
-    lcd.print("pF");
+//    NewCapacitance=GetCapacitanceValue();
+//    lcd.print(" ");
+//    lcd.print(NewCapacitance);
+//    lcd.print("pF");
   }
   GTuneChanged = false;
 //
@@ -271,8 +272,10 @@ void LCD_UI_Tick(void)
     lcd.setCursor(16,2);
     if (GForwardPower == 0)                       // if VSWR undefined
       strcpy(LocalStr, "-.-");
-    else
+    else if ((GIntVSWR < 99) && (GIntVSWR > 0))
       mysprintf(LocalStr, GIntVSWR, true);
+    else
+      strcpy(LocalStr, "Hi");
     lcd.print(LocalStr);
   }
 }

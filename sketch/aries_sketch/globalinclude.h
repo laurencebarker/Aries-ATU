@@ -20,19 +20,32 @@
 #define HWVERSION 1
 #define PRODUCTID 2                 // Aries
 
+
+
 //
 // define this variable if UI with LCD is to be included
 //
 #define CONDITIONAL_LCD_UI 1
 
+
+
 //
 // define this variable if algorithm debug messages are to be printed
 //
 //#define CONDITIONAL_ALG_DEBUG 1
+
+
 //
 // define this variable if a simulated VSWR value is to be generated for algorithm testing
 //
 //#define CONDITIONAL_ALG_SIMVSWR 1
+
+
+
+//
+// define this variable to stream ADC sample readings to the serial port
+//
+//#define CONDITIONAL_STREAM_ADCREADINGS 1
 
 
 #endif      // file sentry
