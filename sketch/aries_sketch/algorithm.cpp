@@ -58,13 +58,23 @@ struct STuneParams
 // this is indexed by the GFreqRow variable
 // 
 #define VNUMTUNEROWS 4                // this tells how far to step
+//STuneParams GTuneParamArray[] = 
+//{
+//  {1, 255, 16, 4, 255, 16, 4},        // 1.8MHz band
+//  {3, 255, 16, 4, 255, 16, 4},        // 3.5 MHz band
+//  {7, 255, 16, 4, 255, 16, 4},        // 7 MHz band
+//  {64, 20, 3, 1, 20, 3, 1}            // high frequenncy
+//};
+
+
 STuneParams GTuneParamArray[] = 
 {
   {1, 255, 16, 4, 255, 16, 4},        // 1.8MHz band
   {3, 255, 16, 4, 255, 16, 4},        // 3.5 MHz band
-  {7, 255, 16, 4, 255, 16, 4},        // 7 MHz band
+  {21, 255, 16, 4, 255, 16, 4},        // 7 MHz band
   {64, 20, 3, 1, 20, 3, 1}            // high frequenncy
 };
+
 
 
 #define VSUCCESSVSWR 150                  // threshold for "successful" tune 
@@ -330,13 +340,16 @@ void SendCandidateSolution(void)
 
 
 //
-// function called to assess tune resut.
+// function called to assess tune result.
 // if quick tune, decide whether to do full tune if VSWR found is good enough, cancel tuning and store solution; else go to full tune
 // if full tune, send to "store" state
 // 
 //
 void AssessTune(void)
 {
+  float VSWR;
+  VSWR=((float)GMinVSWRFound) / 100.0;
+
   if (!GIsQuickTune)                                            // if this was a full tune
   {
     if (GMinVSWRFound < VSUCCESSVSWR)                           // if successful full tune
@@ -349,7 +362,7 @@ void AssessTune(void)
 #ifdef CONDITIONAL_ALG_DEBUG
       Serial.print("Full tune: successful best found: ");               
       Serial.print("VSWR=");
-      Serial.print(GMinVSWRFound);
+      Serial.print(VSWR);
       Serial.print (" L=");
       Serial.print(MinVSWRLValue);
       Serial.print (" C=");
@@ -357,16 +370,16 @@ void AssessTune(void)
       Serial.println();
 #endif
     }
-    else                                          // unsuccessfyl full tune
+    else                                          // unsuccessful full tune
     {
       SetNullSolution();                          // put ATU into bypass
       DriveSolution();                            // send to hardware
-      GAlgState = eAlgIdle;                       // found a solution
+    GAlgState = eAlgEEPROMWrite;                // found a solution
       SetTuneResult(false, GCurrentL, GCurrentC, GCurrentZ);
   #ifdef CONDITIONAL_ALG_DEBUG
       Serial.print("Full tune FAIL: unsuccessful best found: ");               
       Serial.print("VSWR=");
-      Serial.print(GMinVSWRFound);
+      Serial.print(VSWR);
       Serial.print (" L=");
       Serial.print(MinVSWRLValue);
       Serial.print (" C=");
@@ -374,30 +387,17 @@ void AssessTune(void)
       Serial.println();
   #endif
     }
-    
-    GAlgState = eAlgEEPROMWrite;                // found a solution
-    GCurrentC = MinVSWRCValue;                  // assert it to relays
-    GCurrentL = MinVSWRLValue;
-#ifdef CONDITIONAL_ALG_DEBUG
-    Serial.print("Full tune: best found: ");               
-    Serial.print("VSWR=");
-    Serial.print(GMinVSWRFound);
-    Serial.print (" L=");
-    Serial.print(MinVSWRLValue);
-    Serial.print (" C=");
-    Serial.print(MinVSWRCValue);
-    Serial.println();
-#endif
   }
   else if (GMinVSWRFound < VSUCCESSVSWR)                        // else if good enough quick tune
   {
     GAlgState = eAlgEEPROMWrite;                // found a solution
     GCurrentC = MinVSWRCValue;                  // assert it to relays
     GCurrentL = MinVSWRLValue;
+    SetTuneResult(true, GCurrentL, GCurrentC, GCurrentZ);
 #ifdef CONDITIONAL_ALG_DEBUG
-    Serial.print("Quick tune: best found: ");               
+    Serial.print("Successful quick tune: best found: ");               
     Serial.print("VSWR=");
-    Serial.print(GMinVSWRFound);
+    Serial.print(VSWR);
     Serial.print (" L=");
     Serial.print(MinVSWRLValue);
     Serial.print (" C=");

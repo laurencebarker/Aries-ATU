@@ -39,10 +39,13 @@ byte GRXAntenna;                                // selected RX antenna (1-3; 0 i
 byte GTXAntenna;                                // selected TX antenna (1-3; 0 if not set)
 bool GPCTuneActive;                             // true if TUNE is in progress as signalled by PC (note PTT will be detected first)
 volatile bool GPTTPressed;                      // true if PTT pressed (ie TX active). Set by interrupt
+volatile bool GTuneHWPressed;                   // true if tune strobe active (ie tune request). Set by interrupt
 unsigned int GSolutionStartFreq;                // start frequency for internal block of stored solutions
 bool GTXAllowed;                                // true if ATU solution should be set to ATU when TX asserted
 bool GATUIsTuned;                               // true if L/C settings are already set
 bool GQueuedFrequencyChange;                    // true if new frequency sent, but tX was in progress
+byte GPTTReleaseCount;                          // PTT release counter, for debouncing
+byte GTuneHWReleaseCount;                       // hardwired tune strobe release counter
 
 // buffer to hold a set of solutions for all HF frequencies for one antenna
 // chosen to be an integer number of EEPROM pages, slightly larger than max size needed
@@ -57,7 +60,7 @@ extEEPROMFast myEEPROM(kbits_1024, 1, 128, 0x50);         // size, number of EEP
 //
 // variables for local search either side of "ideal" match
 //
-#define VNUMSERACHSIZE 11
+#define VNUMSEARCHSIZE 11
 int GLocalSearch[] = 
 {0, -1, +1, -2, +2, -3, +3, -4, +4, -5, +5};
 
@@ -102,6 +105,40 @@ void EETest(void)
 }
 
 
+//
+// EEPROM read access test
+// perform a few reads and writes to verify EEPROM access works OK
+// 
+void EERead(void)
+{
+  byte ReadStatus;
+  byte Cntr;
+  byte ReadData[16];
+
+  Serial.println("Starting");
+  
+  Serial.println("Reading address 2109");
+  ReadStatus = myEEPROM.read(2109, ReadData, 10);
+  for (Cntr=0; Cntr < 10; Cntr++)
+  {
+    Serial.print("addr: ");
+    Serial.print(Cntr);
+    Serial.print(" data = ");
+    Serial.println(ReadData[Cntr]);
+  }
+
+  Serial.println("Reading address 2145");
+  ReadStatus = myEEPROM.read(2145, ReadData, 10);
+  for (Cntr=0; Cntr < 10; Cntr++)
+  {
+    Serial.print("addr: ");
+    Serial.print(Cntr);
+    Serial.print(" data = ");
+    Serial.println(ReadData[Cntr]);
+  }
+
+}
+
 
 //
 // initialise CATHandler
@@ -115,6 +152,7 @@ void InitCATHandler(void)
     Serial.println(F("I2C Problem"));
   }
 //  EETest();
+//  EERead();
 }
 
 
@@ -240,26 +278,27 @@ void SetTuneResult(bool Successful, byte Inductance, byte Capacitance, bool IsHi
 {
   byte WriteStatus;
   byte WriteBuffer[VSOLUTIONSIZE];                    // data to write  
-  unsigned int StartAddress;                          // start address of solution to write back
+  unsigned int RAMStartAddress;                       // start address of solution to write back
+  unsigned int EEPROMStartAddress;                    // start address of solution to write back
   int Cntr;
 
 //
-// get EEPROM start address
+// get RAM and EEPROM start address
 //
+  RAMStartAddress = VSOLUTIONSIZE * GTunedFrequency10;
   if(GTXAntenna == 0)
-    StartAddress = 0;
+    EEPROMStartAddress = RAMStartAddress;
   else
-    StartAddress = 32768*(GTXAntenna-1);
-  StartAddress += VSOLUTIONSIZE * GTunedFrequency10;
+    EEPROMStartAddress = RAMStartAddress + 32768*(GTXAntenna-1);
 
 //
 // get write data
 //
   if(Successful)
   {
-    WriteBuffer[0] = 0b1;                             // data is available
+    WriteBuffer[0] = 0;                                 // data is available signalled by bottom bit = 0
     if(IsHighZ)
-      WriteBuffer[0] |= 0x80;                          // sert top bit if high Z
+      WriteBuffer[0] |= 0x80;                           // sert top bit if high Z
     WriteBuffer[1] = Inductance;
     WriteBuffer[2] = Capacitance;
   }
@@ -268,8 +307,15 @@ void SetTuneResult(bool Successful, byte Inductance, byte Capacitance, bool IsHi
     for(Cntr=0; Cntr < VSOLUTIONSIZE; Cntr++)
       WriteBuffer[Cntr] = 0xFF;
   }
+//
+// now write data to EEPROM and write it to RAM copy in SolutionBuffer
+//
+  for(Cntr=0; Cntr < VSOLUTIONSIZE; Cntr++)
+    SolutionBuffer[Cntr+RAMStartAddress] = WriteBuffer[Cntr];
+
   byte i2cStat = myEEPROM.begin(myEEPROM.twiClock400kHz);
-  WriteStatus = myEEPROM.write(StartAddress, WriteBuffer, VSOLUTIONSIZE);
+  WriteStatus = myEEPROM.write(EEPROMStartAddress, WriteBuffer, VSOLUTIONSIZE);
+
   MakeTuneSuccessMessage(Successful);               // send message back to PC software
 }
 
@@ -284,48 +330,49 @@ void SetTuneResult(bool Successful, byte Inductance, byte Capacitance, bool IsHi
 void SetupForNewFrequency(void)
 {
   byte Solution1, Solution2, Solution3;               // 3 solution bytes  
-  int StartAddress;                                   // start address of Erase
   int TestAddress;                                    // address we are testing to see if it has a solution
+  int TestFrequency;                                  // frequency value we are testing for
   int Cntr;
   bool SolutionFound = false;                         // true if we get a hit
   bool IsHighZ = false;
   
+
+//
+// now look for an exact or near solution
+// this starts at the exact frequency then steps out looking for a solution
+//
+  for(Cntr=0; Cntr < VNUMSEARCHSIZE; Cntr++)
+  {
+    TestFrequency = GTunedFrequency10 + GLocalSearch[Cntr];     // start, +1, -1, +2, -2...
+    if((TestFrequency >= 0) && (TestFrequency < VMAXFREQUENCY))
+    {
 //
 // get memory start address
 // (this is the same as the offset into the EEPROM block 1, 2 or 3)
 //
-  StartAddress = VSOLUTIONSIZE * GTunedFrequency10;
-//
-// now look for an exact or near solution
-// this starts at the exact frequency then steps outp looking for a solution
-//
-  for(Cntr=0; Cntr < VNUMSERACHSIZE; Cntr++)
-  {
-    TestAddress = StartAddress + GLocalSearch[Cntr];
-    if((TestAddress >= 0) && (TestAddress < VMAXFREQUENCY))
-    {
-      Solution1 = SolutionBuffer[TestAddress++];          // read the 3 solution bytres; then see if valid
+      TestAddress = VSOLUTIONSIZE * TestFrequency;
+      Solution1 = SolutionBuffer[TestAddress++];          // read the 3 solution bytes; then see if valid
       Solution2 = SolutionBuffer[TestAddress++];
       Solution3 = SolutionBuffer[TestAddress];
-      if((Solution1 & 0b00000001) == 0)                   // if bottom bit set
+      if((Solution1 & 0b00000001) == 0)                   // if bottom bit is zero
       {
         SolutionFound = true;                             // we have found a match
         break;
       }
     }
-    // if we have a solutino, set it and send success; else set bypass
-    if(SolutionFound)
-    {
-      if(Solution1 & 0b10000000)
-        IsHighZ = true;
-      SetInductance(Solution2);             // inductance 0-255
-      SetCapacitance(Solution3);            // capacitance 0-255
-      SetHiLoZ(IsHighZ);                    // true for low Z (relay=1)
-    }
-    else
-      SetNullSolution();
-    MakeTuneSuccessMessage(SolutionFound);
   }
+    // if we have a solution, set it and send success; else set bypass
+  if(SolutionFound)
+  {
+    if(Solution1 & 0b10000000)
+      IsHighZ = true;
+    SetInductance(Solution2);             // inductance 0-255
+    SetCapacitance(Solution3);            // capacitance 0-255
+    SetHiLoZ(IsHighZ);                    // true for low Z (relay=1)
+  }
+  else
+    SetNullSolution();
+  MakeTuneSuccessMessage(SolutionFound);
 }
 
 
@@ -347,13 +394,17 @@ void SetupForNewAntenna(void)
 
 //
 // handle TUNE on/off CAT message from PC
+// if ATU is enabled, initiate tune
 //
 void SetTuneOnOff(bool State)
 {
-  GPCTuneActive = State;
-  if(State && GPTTPressed)
-    InitiateQuickTune(true);
-  ShowTune(State);
+  if(GATUEnabled)
+  {
+    GPCTuneActive = State;
+    if(State && GPTTPressed)
+      InitiateQuickTune(true);
+//  ShowTune(State);
+  }
 }
 
 
@@ -539,6 +590,7 @@ void HandleCATCommandStringParam(ECATCommands MatchedCAT, char* ParsedParam)
 
 
 
+
 //
 // tune hardwired input ISR handler
 // this triggers on falling edge, to trigger a "tune request"
@@ -546,48 +598,49 @@ void HandleCATCommandStringParam(ECATCommands MatchedCAT, char* ParsedParam)
 //
 void HWTuneISR(void)
 {
-  Serial.println("HW Tune");                                      // got tune request state from I/O pin
+  if ((GTuneHWPressed == false) && (GTuneHWReleaseCount==0))
+  {
+    GTuneHWPressed = true;                                      // got TX/RX state from I/O pin
+    GTuneHWReleaseCount = 2;
+//    Serial.println("HW Tune");                                  // debug to confirm state
+
+    GPCTuneActive = true;
+    if(GPTTPressed)
+      InitiateQuickTune(true);
+  }
 }
 
 
 //
 // PTT ISR handler
-// this triggers on both edges, so we can set RX and TX antenna as well as ATU tune solution
-// we assume PTT to come from an FPGA source, so no bounce
+// this triggers on the falling edge only to initiate a PTT, so we can set RX and TX antenna as well as ATU tune solution
+// this may bounce, due to presence of RF on grounds: so set "PTT pressed" and a PTT Tick counter to be polled
+// and only handle the interrupt if PTT isn't already pressed and the timeout count expired
+// (this prevents PTT being re-asserted by a bounce on its supposed rising edge)
+// PTT release by polling code.
 //
 void PttISR(void)
 {
-  if(digitalRead(VPINPTT) == LOW)
+  if ((GPTTPressed == false) && (GPTTReleaseCount==0))
+  {
     GPTTPressed = true;                                      // got TX/RX state from I/O pin
-  else
-    GPTTPressed = false;                                     // got TX/RX state from I/O pin
+    GPTTReleaseCount = 2;
 
-  if(digitalRead(VPINPTT) == LOW)
-    Serial.println("PTT");                                      // got TX/RX state from I/O pin
-  else
-    Serial.println("no PTT");                                      // got TX/RX state from I/O pin
+//    Serial.println("PTT");                                      // debug to confirm state
  
 //
 // either send new data to SPI, or queue a shift
 //  
-  if(GSPIShiftInProgress)
-    GResendSPI = true;
-  else
-    DriveSolution();                                         // drive SPI. This sets T/R state AND sends L/C data
+    if(GSPIShiftInProgress)
+      GResendSPI = true;
+    else
+      DriveSolution();                                         // drive SPI. This sets T/R state AND sends L/C data
 //
 // if Tune command already sent via CAT, initiate tune
 // (there is a race condition and it's unclear whether the CAT tune command or PTT would happen first)
 //
-  if(GPTTPressed)
-  {
     if(GPCTuneActive == true)
       InitiateQuickTune(true);
-  }
-  else
-  {
-    GPCTuneActive = false;                                    // cancel CAT tune
-    if(GTuneActive)                                           // if algorithm still running, cancel it
-      CancelAlgorithm();
   }
 }
 
@@ -604,5 +657,36 @@ void CatHandlerTick()
     GQueuedFrequencyChange=false;
     SetupForNewFrequency();
   }
-  
+
+  // check PTT state. First decrement the debounce count; PTT won't press or release if not zero.
+  // then if the debounce count, see if PTT needs releasing.
+  if(GPTTReleaseCount != 0)
+    GPTTReleaseCount--;
+  if((GPTTReleaseCount == 0) && (GPTTPressed == true))
+  {
+    if(digitalRead(VPINPTT) == HIGH)
+    { 
+//      Serial.println("no PTT");                                      // debug to confirm state
+      GPTTReleaseCount = 2;
+      GPTTPressed = false;
+      GPCTuneActive = false;                                    // cancel CAT tune
+      if(GTuneActive)                                           // if algorithm still running, cancel it
+        CancelAlgorithm();
+    }
+  }
+
+  // check Tune strobe state state. First decrement the debounce count; TUNE won't press or release if not zero.
+  // then if the debounce count, see if TUNE needs releasing.
+  if(GTuneHWReleaseCount != 0)
+    GTuneHWReleaseCount--;
+  if((GTuneHWReleaseCount == 0) && (GTuneHWPressed == true))
+  {
+    if(digitalRead(VPINHWTUNECMD) == HIGH)
+    { 
+//      Serial.println("no TUNE");                                // debug to confirm state
+      GTuneHWReleaseCount = 2;
+      GTuneHWPressed = false;
+    }
+  }
+
 }

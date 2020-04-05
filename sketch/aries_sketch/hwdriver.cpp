@@ -80,7 +80,9 @@ void InitialiseHardwareDrivers(void)
 
 //
 // functions to set antenna (numbered 1-3)
+// the SPI driver will shift either StoredAntennaRXTR or StoredAntennaTXTR
 // for RX antenna, need to drive its setting out if we are in RX mode
+// for TX antenna, if already in TX we do NOT set it; gets set on next TX
 //
 void SetAntennaSPI(int Antenna, bool IsRXAnt)
 {

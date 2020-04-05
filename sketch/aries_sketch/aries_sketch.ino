@@ -196,7 +196,7 @@ void ConfigIOPins(void)
   digitalWrite(VPINRELAYLOHIZ, LOW);                    // deactivate relay
 
 // PTT interrupt needs to catch both edges so we can send SPI data for T/R relay and RX/TX antenna
-  attachInterrupt(VPINPTT, PttISR, CHANGE);
+  attachInterrupt(VPINPTT, PttISR, FALLING);
   
 // h/w tune interrupt needs to catch falling edge to initiate a tune request.
   attachInterrupt(VPINHWTUNECMD, HWTuneISR, FALLING);
