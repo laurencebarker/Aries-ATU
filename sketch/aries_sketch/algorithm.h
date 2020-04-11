@@ -47,7 +47,7 @@ void AlgorithmSetFrequency(byte FreqMHz);
 // this initialises the data structures so that a series of timer ticks will step through the cycle
 // StartQuick if the algorithm should try a "quick tune" first
 //
-void InitiateQuickTune(bool StartQuick);
+void InitiateTune(bool StartQuick);
 
 
 //

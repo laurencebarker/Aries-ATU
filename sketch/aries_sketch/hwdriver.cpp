@@ -236,7 +236,7 @@ int GetVSWR(void)
 #define VCTARGET 59                               // C value we should get the minimum at
 #define VLSLOPE 5
 #define VCSLOPE 8
-#define VHILOTARGET 1                             // 1 for min VSWR in high Z range; 0 for min VSWR in low Z range
+#define VHILOTARGET 0                             // 1 for min VSWR in high Z range; 0 for min VSWR in low Z range
 
   if((StoredHiLoZ && (VHILOTARGET == 1)) || (!StoredHiLoZ && (VHILOTARGET==0)))                   // if we are looking in the right region 
     VSWR = VSWRMIN + VLSLOPE*abs(StoredLValue - VLTARGET) + VCSLOPE*abs(StoredCValue - VCTARGET);

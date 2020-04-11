@@ -36,6 +36,10 @@ void LCD_UI_EncoderTick(bool OddEncoder);
 //
 void LCU_UI_SetTuning(bool);
 
+//
+// force LCD update
+//
+void SetTuneChanged();
 
 //
 // set forward power and VSWR

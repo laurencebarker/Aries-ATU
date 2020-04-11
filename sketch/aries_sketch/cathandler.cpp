@@ -402,7 +402,7 @@ void SetTuneOnOff(bool State)
   {
     GPCTuneActive = State;
     if(State && GPTTPressed)
-      InitiateQuickTune(true);
+      InitiateTune(true);
 //  ShowTune(State);
   }
 }
@@ -504,11 +504,42 @@ void HandleEraseSolutions(int Antenna)
 
 //
 // handle an L/C fine tune CAT command from PC
+// 01: inductance +; 02: capacitance +; 51: inductance -; 52: capacitance -
 //
 void HandleLCFineTune(int Command)
 {
-//  Serial.print("L/C fine tune = ");
-//  Serial.println(Command);
+  byte CurrentL;
+  byte CurrentC;
+  byte Knob;
+  byte Steps;
+  Serial.print ("command=");
+  Serial.print(Command);
+  Serial.println();
+  CurrentL = GetInductance();
+  CurrentC = GetCapacitance();
+  Knob = Command / 10;                                  // encoder number (1,2,51,52)
+  Steps = Command % 10;
+  if(Knob == 1)
+  {
+    CurrentL = constrain(CurrentL + Steps, 0, 255);
+    SetInductance(CurrentL);
+  }
+  else if(Knob == 2)
+  {
+    CurrentC = constrain(CurrentC + Steps, 0, 255);
+    SetCapacitance(CurrentC);
+  }
+  else if(Knob == 51)
+  {
+    CurrentL = constrain(CurrentL - Steps, 0, 255);
+    SetInductance(CurrentL);
+  }
+  else if(Knob == 52)
+  {
+    CurrentC = constrain(CurrentC - Steps, 0, 255);
+    SetCapacitance(CurrentC);
+  }
+  LCU_UI_SetTuning(false);             // trigger LCD redraw
 }
 
 
@@ -606,7 +637,7 @@ void HWTuneISR(void)
 
     GPCTuneActive = true;
     if(GPTTPressed)
-      InitiateQuickTune(true);
+      InitiateTune(true);
   }
 }
 
@@ -640,7 +671,7 @@ void PttISR(void)
 // (there is a race condition and it's unclear whether the CAT tune command or PTT would happen first)
 //
     if(GPCTuneActive == true)
-      InitiateQuickTune(true);
+      InitiateTune(true);
   }
 }
 

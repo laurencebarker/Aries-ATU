@@ -73,6 +73,15 @@ void LCD_UI_Initialise(void)
 }
 
 
+//
+// force LCD update
+//
+void SetTuneChanged()
+{
+  GTuneChanged = true;
+}
+
+
 #define VASCII0 0x30                // zero character in ASCII
 //
 // local version of "sprintf like" function
@@ -196,7 +205,7 @@ void LCD_UI_Tick(void)
 //
   if (TunePressEvent == ePressed)
   {
-    InitiateQuickTune(true);
+    InitiateTune(true);
     lcd.setCursor(0, 2);        //1st column, third row
     lcd.print("tuning  ");
   }

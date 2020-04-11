@@ -16,7 +16,7 @@
 //
 // hardware and software version: send back to console on request
 //
-#define SWVERSION 1
+#define SWVERSION 3
 #define HWVERSION 1
 #define PRODUCTID 2                 // Aries
 
