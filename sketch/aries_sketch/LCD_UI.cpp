@@ -205,6 +205,10 @@ void LCD_UI_Tick(void)
 //
   if (TunePressEvent == ePressed)
   {
+#ifdef CONDITIONAL_ALG_DEBUG
+      Serial.println("manual TUNE pressed");                                // debug to confirm state
+#endif
+    
     InitiateTune(true);
     lcd.setCursor(0, 2);        //1st column, third row
     lcd.print("tuning  ");

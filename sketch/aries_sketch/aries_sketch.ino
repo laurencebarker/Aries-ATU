@@ -198,6 +198,6 @@ void ConfigIOPins(void)
 // PTT interrupt needs to catch both edges so we can send SPI data for T/R relay and RX/TX antenna
   attachInterrupt(VPINPTT, PttISR, FALLING);
   
-// h/w tune interrupt needs to catch falling edge to initiate a tune request.
-  attachInterrupt(VPINHWTUNECMD, HWTuneISR, FALLING);
+// h/w tune interrupt needs to catch falling edge to initiate a tune request. (temp disconnected)
+//  attachInterrupt(VPINHWTUNECMD, HWTuneISR, FALLING);
 }

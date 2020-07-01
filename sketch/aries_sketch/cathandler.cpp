@@ -621,7 +621,7 @@ void HandleCATCommandStringParam(ECATCommands MatchedCAT, char* ParsedParam)
 
 
 
-
+/*
 //
 // tune hardwired input ISR handler
 // this triggers on falling edge, to trigger a "tune request"
@@ -633,13 +633,16 @@ void HWTuneISR(void)
   {
     GTuneHWPressed = true;                                      // got TX/RX state from I/O pin
     GTuneHWReleaseCount = 2;
-//    Serial.println("HW Tune");                                  // debug to confirm state
+#ifdef CONDITIONAL_ALG_DEBUG
+    Serial.println("HW TUNE");                                // debug to confirm state
+#endif
 
     GPCTuneActive = true;
     if(GPTTPressed)
       InitiateTune(true);
   }
 }
+*/
 
 
 //
@@ -657,7 +660,9 @@ void PttISR(void)
     GPTTPressed = true;                                      // got TX/RX state from I/O pin
     GPTTReleaseCount = 2;
 
-//    Serial.println("PTT");                                      // debug to confirm state
+#ifdef CONDITIONAL_ALG_DEBUG
+    Serial.println("PTT");                                // debug to confirm state
+#endif
  
 //
 // either send new data to SPI, or queue a shift
@@ -697,7 +702,9 @@ void CatHandlerTick()
   {
     if(digitalRead(VPINPTT) == HIGH)
     { 
-//      Serial.println("no PTT");                                      // debug to confirm state
+#ifdef CONDITIONAL_ALG_DEBUG
+      Serial.println("no PTT");                                // debug to confirm state
+#endif
       GPTTReleaseCount = 2;
       GPTTPressed = false;
       GPCTuneActive = false;                                    // cancel CAT tune
@@ -706,6 +713,7 @@ void CatHandlerTick()
     }
   }
 
+/*
   // check Tune strobe state state. First decrement the debounce count; TUNE won't press or release if not zero.
   // then if the debounce count, see if TUNE needs releasing.
   if(GTuneHWReleaseCount != 0)
@@ -714,10 +722,14 @@ void CatHandlerTick()
   {
     if(digitalRead(VPINHWTUNECMD) == HIGH)
     { 
-//      Serial.println("no TUNE");                                // debug to confirm state
+#ifdef CONDITIONAL_ALG_DEBUG
+      Serial.println("no TUNE");                                // debug to confirm state
+#endif
+      
       GTuneHWReleaseCount = 2;
       GTuneHWPressed = false;
     }
   }
+*/
 
 }
