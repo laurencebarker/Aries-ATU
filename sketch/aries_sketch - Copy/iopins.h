@@ -35,12 +35,12 @@
 #define VPINCOUNTENABLE 3             // count enable output, if needed
 
 // analogue inputs are swapped if we use the binocular core ferrite in the VSWR bridge
-#ifdef VSWR_SWAPVFVR
+#ifdef VSWR_BN43_3301
 #define VPINVSWR_FWD A1               // analogue input
 #define VPINVSWR_REV A0               // analogue input
 #else
 #define VPINVSWR_FWD A0               // analogue input
 #define VPINVSWR_REV A1               // analogue input
-#endif //VSWR_SWAPVFVR
+#endif //VSWR_BN43_3301
 
 #endif //not defined

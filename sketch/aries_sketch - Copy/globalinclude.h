@@ -16,14 +16,14 @@
 //
 // hardware and software version: send back to console on request
 //
-#define SWVERSION 6
+#define SWVERSION 5
 #define HWVERSION 1
 #define PRODUCTID 2                 // Aries
 
 //
 // define this variable if if the VSWR bridge uses the binocular core ferrite
 //
-#define VSWR_SWAPVFVR 1
+#define VSWR_BN43_3301 1
 
 
 //

@@ -18,7 +18,6 @@
 
 extern bool GResendSPI;                            // true if SPI data must be shifted again
 extern bool GSPIShiftInProgress;                   // true if SPI shify is currently happening
-extern unsigned int GVf, GVr;                      // forward and reverse voltages
 
 
 
@@ -76,12 +75,5 @@ int GetInductanceValue(void);
 // returns 100*VSWR; clipped to 65535
 //
 int GetVSWR(void);
-
-//
-// function to return mean and p-p excursion of Vf and Vr
-// used to get a display value for the Nextion display
-// 
-void GetADCMeanAndPeak(bool IsVF, unsigned int* Mean, unsigned int* Peak);
-
 
 #endif

@@ -15,7 +15,7 @@
 
     enum EButtonEvent
     { 
-      eNoEvent,
+      eNone,
       ePressed, 
       eReleased, 
       eLongPressed 

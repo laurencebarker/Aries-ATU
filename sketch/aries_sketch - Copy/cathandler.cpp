@@ -445,20 +445,16 @@ void SetNewFrequency(char* FreqString)
   FreqString[Length-4]=0;                                                 // make 3 chars shorter (resolution 10KHz)
   GTunedFrequency10 = atol(FreqString);
 //
+// now see if we have a solution
+//
+  if(GPTTPressed)
+    GQueuedFrequencyChange=true;
+  else
+    SetupForNewFrequency();
+//
 // set the frequency the algorithm should use
 //
   FindFreqRow(GTunedFrequency10/100);                                     // set algorithm frequency, in units of 1MHz
-//
-// now see if we have a solution
-//
-  if(GATUEnabled)
-  {
-    if(GPTTPressed)
-      GQueuedFrequencyChange=true;
-    else
-      SetupForNewFrequency();
-  }
-  ShowFrequency(FreqString);
 }
 
 
@@ -519,8 +515,8 @@ void HandleEraseSolutions(int Antenna)
 //
 void HandleLCFineTune(int Command)
 {
-  int CurrentL;
-  int CurrentC;
+  byte CurrentL;
+  byte CurrentC;
   byte Knob;
   byte Steps;
   Serial.print ("command=");
@@ -534,29 +530,21 @@ void HandleLCFineTune(int Command)
   {
     CurrentL = constrain(CurrentL + Steps, 0, 255);
     SetInductance(CurrentL);
-    if (!GTuneActive)
-      DriveSolution();                                    // send to shift registers
   }
   else if(Knob == 2)
   {
     CurrentC = constrain(CurrentC + Steps, 0, 255);
     SetCapacitance(CurrentC);
-    if (!GTuneActive)
-      DriveSolution();                                    // send to shift registers
   }
   else if(Knob == 51)
   {
     CurrentL = constrain(CurrentL - Steps, 0, 255);
     SetInductance(CurrentL);
-    if (!GTuneActive)
-      DriveSolution();                                    // send to shift registers
   }
   else if(Knob == 52)
   {
     CurrentC = constrain(CurrentC - Steps, 0, 255);
     SetCapacitance(CurrentC);
-    if (!GTuneActive)
-      DriveSolution();                                    // send to shift registers
   }
   LCU_UI_SetTuning(false);             // trigger LCD redraw
 }

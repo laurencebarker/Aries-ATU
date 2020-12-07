@@ -20,7 +20,6 @@
 // accessible global variables
 //
 extern volatile bool GPTTPressed;                      // true if PTT pressed (ie TX active). Set by interrupt
-extern bool GPCTuneActive;                             // true if TUNE is in progress as signalled by PC (note PTT will be detected first)
 
 
 

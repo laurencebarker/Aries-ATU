@@ -36,14 +36,6 @@ bool GSPIShiftInProgress;                   // true if SPI shify is currently ha
 #define VVSWR_HIGH 100.0F                   // to avoid divide by zero
 #define VLINEVOLTSCALE 0.02057F             // convert ADC reading to volts (3.3V VCC, 12 bit ADC)
 
-unsigned int GVf, GVr;                      // forward and reverse voltages (raw ADC measurements)
-
-// variables for reading average and p-p ADC values
-#define VNUMADCAVG 16
-unsigned int GVFArray[VNUMADCAVG];          // circular buffer of Vf values
-unsigned int GVRArray[VNUMADCAVG];          // circular buffer of Vr values
-unsigned int GCircBufferPtr;                // current position to write to
-
 
 //
 // ADC averaging
@@ -81,7 +73,6 @@ void InitialiseHardwareDrivers(void)
     ;
 
   DriveSolution();
-  GCircBufferPtr = 0;
 }
 
 
@@ -181,21 +172,8 @@ void HWDriverTick(void)
   float Unit;                                       // converted measurement
   float VFwd, VRev;                                 // forward, reverse line voltages
   int Power, DisplayVSWR;                           // values for display
-
   FwdVoltReading = analogRead(VPINVSWR_FWD);        // read forward power sensor (actually line volts)
   RevVoltReading = analogRead(VPINVSWR_REV);        // read reverse power sensor (actually line volts)
-  GVf = FwdVoltReading;
-  GVr = RevVoltReading;
-
-//
-// write values to circular buffer
-// adjust pointer first
-//
-  if(GCircBufferPtr++ >= VNUMADCAVG)
-    GCircBufferPtr = 0;
-  GVFArray[GCircBufferPtr] = FwdVoltReading;
-  GVRArray[GCircBufferPtr] = RevVoltReading;
-  
 //
 // convert the raw measurements to "normal" units
 //
@@ -203,7 +181,7 @@ void HWDriverTick(void)
   VRev = (float)RevVoltReading * VLINEVOLTSCALE;    // reverse line RMS voltage
 
 #ifdef CONDITIONAL_STREAM_ADCREADINGS
-  if (FwdVoltReading > 0)
+  if (FwdVoltReading > 200)
   {
     Serial.print("Vf=");
     Serial.print(FwdVoltReading);
@@ -233,37 +211,6 @@ void HWDriverTick(void)
 
 
 
-//
-// function to return mean and p-p excursion of Vf and Vr
-// used to get a display value for the Nextion display
-// 
-void GetADCMeanAndPeak(bool IsVF, unsigned int* Mean, unsigned int* Peak)
-{
-  unsigned int* Ptr;                          // pointer to array
-  byte Cntr;                                  // loop counter
-  unsigned long Total;                        // total value found
-  unsigned int Smallest, Largest;             // biggest and smallest found
-  unsigned int Reading;
-
-  Smallest = 65535;
-  Largest = 0;
-  Total = 0;
-
-  if(IsVF)                                    // get array pointer                                     
-    Ptr = GVFArray;
-  else
-    Ptr = GVRArray;
-
-  for(Cntr=0; Cntr < VNUMADCAVG; Cntr++)
-  {
-    Reading = *Ptr++;
-    Smallest = min(Smallest, Reading);
-    Largest = max(Largest, Reading);
-    Total += Reading;
-  }
-  *Mean = Total / VNUMADCAVG;                        // get mean
-  *Peak = Largest - Smallest;
-}
 
 // 
 // function to return VSWR value

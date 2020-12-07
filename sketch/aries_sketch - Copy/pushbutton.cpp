@@ -43,7 +43,7 @@ PushbuttonDebounce::PushbuttonDebounce(byte BTN, byte TicksPerLongPress)
 EButtonEvent PushbuttonDebounce::Tick(void)
 { 
   byte PinState;					// input pin state
-  EButtonEvent Event = eNoEvent;
+  EButtonEvent Event = eNone;
 
 //
 // read new pin state into the register holiding the last 8 states

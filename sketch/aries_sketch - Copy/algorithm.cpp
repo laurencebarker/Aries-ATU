@@ -94,10 +94,10 @@ STuneParams GTuneParamArray[] =
 {
   {1, 0, 12, 255, 255, 24, 32, 4, 8},        // 1.8MHz band
   {3, 12, 12, 255, 255, 24, 32, 4, 8},        // 3.5MHz band
-  {7, 24, 12, 210, 210, 12, 24, 4, 8},        // 7MHz band
-  {14, 36, 12, 100, 100, 6, 12, 2, 8},        // 14MHz band
-  {29, 48, 12, 60, 60, 3, 8, 1, 8},        // 21 & 28MHz band
-  {64, 60, 12, 30, 30, 2, 8, 1, 8},        // 50MHz band
+  {7, 24, 12, 140, 140, 12, 24, 4, 8},        // 7MHz band
+  {14, 36, 12, 63, 63, 6, 12, 2, 8},        // 14MHz band
+  {29, 48, 12, 40, 40, 3, 8, 1, 8},        // 21 & 28MHz band
+  {64, 60, 12, 20, 20, 2, 8, 1, 8},        // 50MHz band
 };
 
 
@@ -115,66 +115,66 @@ SSweepSet GStage1Array[] =
   {false, true, 0, 255, 24, 0},             // 1.8MHz try1 loz step L
   {true, false, 0, 255, 24, 0},             // 1.8MHz try1 hiZ step C
   {true, true, 0, 255, 24, 0},              // 1.8MHz try1 hiZ step L
-  {false, false, 0, 255, 24, 48},           // 1.8MHz try2 loZ step C
-  {false, true, 0, 255, 24, 48},            // 1.8MHz try2 loz step L
-  {true, false, 0, 255, 24, 48},            // 1.8MHz try2 hiZ step C
-  {true, true, 0, 255, 24, 48},             // 1.8MHz try2 hiZ step L
-  {false, false, 0, 255, 24, 96},           // 1.8MHz try3 loZ step C
-  {false, true, 0, 255, 24, 96},            // 1.8MHz try3 loz step L
-  {true, false, 0, 255, 24, 96},            // 1.8MHz try3 hiZ step C
-  {true, true, 0, 255, 24, 96},             // 1.8MHz try3 hiZ step L
+  {false, false, 0, 255, 24, 32},           // 1.8MHz try2 loZ step C
+  {false, true, 0, 255, 24, 32},            // 1.8MHz try2 loz step L
+  {true, false, 0, 255, 24, 32},            // 1.8MHz try2 hiZ step C
+  {true, true, 0, 255, 24, 32},             // 1.8MHz try2 hiZ step L
+  {false, false, 0, 255, 24, 64},           // 1.8MHz try3 loZ step C
+  {false, true, 0, 255, 24, 64},            // 1.8MHz try3 loz step L
+  {true, false, 0, 255, 24, 64},            // 1.8MHz try3 hiZ step C
+  {true, true, 0, 255, 24, 64},             // 1.8MHz try3 hiZ step L
 
   {false, false, 0, 255, 24, 0},            // 3.5MHz try1 loZ step C
   {false, true, 0, 255, 24, 0},             // 3.5MHz try1 loz step L
   {true, false, 0, 255, 24, 0},             // 3.5MHz try1 hiZ step C
   {true, true, 0, 255, 24, 0},              // 3.5MHz try1 hiZ step L
-  {false, false, 0, 255, 24, 36},           // 3.5MHz try2 loZ step C
-  {false, true, 0, 255, 24, 36},            // 3.5MHz try2 loz step L
-  {true, false, 0, 255, 24, 36},            // 3.5MHz try2 hiZ step C
-  {true, true, 0, 255, 24, 36},             // 3.5MHz try2 hiZ step L
-  {false, false, 0, 255, 24, 72},           // 3.5MHz try3 loZ step C
-  {false, true, 0, 255, 24, 72},            // 3.5MHz try3 loz step L
-  {true, false, 0, 255, 24, 72},            // 3.5MHz try3 hiZ step C
-  {true, true, 0, 255, 24, 72},             // 3.5MHz try3 hiZ step L
+  {false, false, 0, 255, 24, 24},           // 3.5MHz try2 loZ step C
+  {false, true, 0, 255, 24, 24},            // 3.5MHz try2 loz step L
+  {true, false, 0, 255, 24, 24},            // 3.5MHz try2 hiZ step C
+  {true, true, 0, 255, 24, 24},             // 3.5MHz try2 hiZ step L
+  {false, false, 0, 255, 24, 48},           // 3.5MHz try3 loZ step C
+  {false, true, 0, 255, 24, 48},            // 3.5MHz try3 loz step L
+  {true, false, 0, 255, 24, 48},            // 3.5MHz try3 hiZ step C
+  {true, true, 0, 255, 24, 48},             // 3.5MHz try3 hiZ step L
 
-  {false, false, 0, 210, 20, 0},            // 7MHz try1 loZ step C
-  {false, true, 0, 210, 20, 0},             // 7MHz try1 loz step L
-  {true, false, 0, 210, 20, 0},             // 7MHz try1 hiZ step C
-  {true, true, 0, 1210, 20, 0},              // 7MHz try1 hiZ step L
-  {false, false, 0, 210, 20, 18},           // 7MHz try2 loZ step C
-  {false, true, 0, 210, 20, 18},            // 7MHz try2 loz step L
-  {true, false, 0, 210, 20, 18},            // 7MHz try2 hiZ step C
-  {true, true, 0, 210, 20, 18},             // 7MHz try2 hiZ step L
-  {false, false, 0, 210, 20, 36},           // 7MHz try3 loZ step C
-  {false, true, 0, 210, 20, 36},            // 7MHz try3 loz step L
-  {true, false, 0, 210, 20, 36},            // 7MHz try3 hiZ step C
-  {true, true, 0, 210, 20, 36},             // 7MHz try3 hiZ step L
+  {false, false, 0, 140, 12, 0},            // 7MHz try1 loZ step C
+  {false, true, 0, 140, 12, 0},             // 7MHz try1 loz step L
+  {true, false, 0, 140, 12, 0},             // 7MHz try1 hiZ step C
+  {true, true, 0, 140, 12, 0},              // 7MHz try1 hiZ step L
+  {false, false, 0, 140, 12, 12},           // 7MHz try2 loZ step C
+  {false, true, 0, 140, 12, 12},            // 7MHz try2 loz step L
+  {true, false, 0, 140, 12, 12},            // 7MHz try2 hiZ step C
+  {true, true, 0, 140, 12, 12},             // 7MHz try2 hiZ step L
+  {false, false, 0, 140, 12, 24},           // 7MHz try3 loZ step C
+  {false, true, 0, 140, 12, 24},            // 7MHz try3 loz step L
+  {true, false, 0, 140, 12, 24},            // 7MHz try3 hiZ step C
+  {true, true, 0, 140, 12, 24},             // 7MHz try3 hiZ step L
 
-  {false, false, 0, 100, 10, 0},              // 14MHz try1 loZ step C
-  {false, true, 0, 100, 10, 0},               // 14MHz try1 loz step L
-  {true, false, 0, 100, 10, 0},               // 14MHz try1 hiZ step C
-  {true, true, 0, 100, 10, 0},                // 14MHz try1 hiZ step L
-  {false, false, 0, 100, 10, 18},             // 14MHz try2 loZ step C
-  {false, true, 0, 100, 10, 18},              // 14MHz try2 loz step L
-  {true, false, 0, 100, 10, 18},              // 14MHz try2 hiZ step C
-  {true, true, 0, 100, 10, 18},               // 14MHz try2 hiZ step L
-  {false, false, 0, 100, 10, 36},             // 14MHz try3 loZ step C
-  {false, true, 0, 100, 10, 36},              // 14MHz try3 loz step L
-  {true, false, 0, 100, 10, 36},              // 14MHz try3 hiZ step C
-  {true, true, 0, 100, 10, 36},               // 14MHz try3 hiZ step L
+  {false, false, 0, 63, 6, 0},              // 14MHz try1 loZ step C
+  {false, true, 0, 63, 6, 0},               // 14MHz try1 loz step L
+  {true, false, 0, 63, 6, 0},               // 14MHz try1 hiZ step C
+  {true, true, 0, 63, 6, 0},                // 14MHz try1 hiZ step L
+  {false, false, 0, 63, 6, 12},             // 14MHz try2 loZ step C
+  {false, true, 0, 63, 6, 12},              // 14MHz try2 loz step L
+  {true, false, 0, 63, 6, 12},              // 14MHz try2 hiZ step C
+  {true, true, 0, 63, 6, 12},               // 14MHz try2 hiZ step L
+  {false, false, 0, 63, 6, 24},             // 14MHz try3 loZ step C
+  {false, true, 0, 63, 6, 24},              // 14MHz try3 loz step L
+  {true, false, 0, 63, 6, 24},              // 14MHz try3 hiZ step C
+  {true, true, 0, 63, 6, 24},               // 14MHz try3 hiZ step L
 
-  {false, false, 0, 55, 5, 0},              // 21-28MHz try1 loZ step C
-  {false, true, 0, 55, 5, 0},               // 21-28MHz try1 loz step L
-  {true, false, 0, 55, 5, 0},               // 21-28MHz try1 hiZ step C
-  {true, true, 0, 55, 5, 0},                // 21-28MHz try1 hiZ step L
-  {false, false, 0, 55, 5, 8},              // 21-28MHz try2 loZ step C
-  {false, true, 0, 55, 5, 8},               // 21-28MHz try2 loz step L
-  {true, false, 0, 55, 5, 8},               // 21-28MHz try2 hiZ step C
-  {true, true, 0, 55, 5, 8},                // 21-28MHz try2 hiZ step L
-  {false, false, 0, 55, 5, 16},             // 21-28MHz try3 loZ step C
-  {false, true, 0, 55, 5, 16},              // 21-28MHz try3 loz step L
-  {true, false, 0, 55, 5, 16},              // 21-28MHz try3 hiZ step C
-  {true, true, 0, 55, 5, 16},               // 21-28MHz try3 hiZ step L
+  {false, false, 0, 35, 3, 0},              // 21-28MHz try1 loZ step C
+  {false, true, 0, 35, 3, 0},               // 21-28MHz try1 loz step L
+  {true, false, 0, 35, 3, 0},               // 21-28MHz try1 hiZ step C
+  {true, true, 0, 35, 3, 0},                // 21-28MHz try1 hiZ step L
+  {false, false, 0, 35, 3, 5},              // 21-28MHz try2 loZ step C
+  {false, true, 0, 35, 3, 5},               // 21-28MHz try2 loz step L
+  {true, false, 0, 35, 3, 5},               // 21-28MHz try2 hiZ step C
+  {true, true, 0, 35, 3, 5},                // 21-28MHz try2 hiZ step L
+  {false, false, 0, 35, 3, 10},             // 21-28MHz try3 loZ step C
+  {false, true, 0, 35, 3, 10},              // 21-28MHz try3 loz step L
+  {true, false, 0, 35, 3, 10},              // 21-28MHz try3 hiZ step C
+  {true, true, 0, 35, 3, 10},               // 21-28MHz try3 hiZ step L
 
   {false, false, 0, 20, 2, 0},              // 50MHz try1 loZ step C
   {false, true, 0, 20, 2, 0},               // 50MHz try1 loz step L
