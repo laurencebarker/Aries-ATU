@@ -96,7 +96,11 @@ void TickHandler(void)
   bool IsOdd = false;                           // call encoder tick with alternating odd/even setting
   if(GTickCounter &1)
     IsOdd = true;
+
+#ifdef CONDITIONAL_LCD_UI
   LCD_UI_EncoderTick(IsOdd);
+#endif
+
 //
 // now count ticks to 16ms tick
 //

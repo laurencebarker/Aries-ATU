@@ -565,7 +565,9 @@ void AlgorithmTick(void)
   if((GTuneActive == false) && (GAlgState != eAlgIdle))
   {
     GAlgState = eAlgIdle;
-    LCU_UI_SetTuning(false);
+#ifdef CONDITIONAL_LCD_UI    
+    LCD_UI_SetTuning(false);
+#endif
   }
   
 //
@@ -683,7 +685,9 @@ void AlgorithmTick(void)
     case eAlgEEPROMWrite:
       GAlgState = eAlgIdle;                         // finished calculating
       GTuneActive = false;
-      LCU_UI_SetTuning(false);
+#ifdef CONDITIONAL_LCD_UI
+      LCD_UI_SetTuning(false);
+#endif
       break;
   }
 //

@@ -34,7 +34,7 @@ void LCD_UI_EncoderTick(bool OddEncoder);
 // set whether tuning or not
 // true if tune is in progress
 //
-void LCU_UI_SetTuning(bool);
+void LCD_UI_SetTuning(bool);
 
 //
 // force LCD update

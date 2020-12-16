@@ -29,7 +29,7 @@
 //
 // define this variable if UI with LCD is to be included
 //
-#define CONDITIONAL_LCD_UI 1
+//#define CONDITIONAL_LCD_UI 1
 
 
 

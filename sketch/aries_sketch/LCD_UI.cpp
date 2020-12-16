@@ -21,6 +21,8 @@
 #include <Arduino.h>
 #include <Nextion.h>
 
+#ifdef CONDITIONAL_LCD_UI
+
 //
 // global variables
 //
@@ -569,7 +571,7 @@ void LCD_UI_Tick(void)
 // set whether tuning or not
 // true if tune is in progress
 //
-void LCU_UI_SetTuning(bool IsTuning)
+void LCD_UI_SetTuning(bool IsTuning)
 {
 #ifdef CONDITIONAL_LCD_UI
   
@@ -631,3 +633,5 @@ void ShowATUEnabled(bool IsEnabled)
   else
     p0Enabled.setText("Disbled");
 }
+
+#endif

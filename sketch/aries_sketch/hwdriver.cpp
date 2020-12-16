@@ -214,7 +214,11 @@ void HWDriverTick(void)
   
   Unit = VFwd * VFwd/50;                            // calculate power in 50 ohm line
   Power = int(Unit);
+
+
+#ifdef CONDITIONAL_LCD_UI  
   SetPwr(Power);
+#endif
 //
 // finally calculate VSWR
 // GVSWR stored as float
@@ -228,7 +232,10 @@ void HWDriverTick(void)
     GVSWR = VVSWR_HIGH;
     
   DisplayVSWR = (int)(GVSWR * 10.0);                     // 1 decimal place int 
+
+#ifdef CONDITIONAL_LCD_UI  
   SetVSWR(DisplayVSWR);
+#endif
 }
 
 

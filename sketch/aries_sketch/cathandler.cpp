@@ -426,7 +426,10 @@ void SetATUOnOff(bool State)
     SetupForNewAntenna();                       // get new settings
   else
     SetNullSolution();                          // set L, C values for ATU out of circuit
+
+#ifdef CONDITIONAL_LCD_UI
   ShowATUEnabled(State);                        // debug
+#endif
 }
 
 
@@ -458,7 +461,9 @@ void SetNewFrequency(char* FreqString)
     else
       SetupForNewFrequency();
   }
+#ifdef CONDITIONAL_LCD_UI
   ShowFrequency(FreqString);
+#endif
 }
 
 
@@ -558,7 +563,10 @@ void HandleLCFineTune(int Command)
     if (!GTuneActive)
       DriveSolution();                                    // send to shift registers
   }
-  LCU_UI_SetTuning(false);             // trigger LCD redraw
+
+#ifdef CONDITIONAL_LCD_UI
+  LCD_UI_SetTuning(false);             // trigger LCD redraw
+#endif
 }
 
 
