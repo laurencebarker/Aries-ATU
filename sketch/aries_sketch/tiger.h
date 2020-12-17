@@ -49,7 +49,7 @@ typedef enum
 //
 struct SCATCommands
 {
-  char* CATString;                // eg "ZZAR"
+  const char* CATString;          // eg "ZZAR"
   ERXParamType RXType;            // type of parameter expected on receive
   long MinParamValue;             // eg "-999"
   long MaxParamValue;             // eg "9999"

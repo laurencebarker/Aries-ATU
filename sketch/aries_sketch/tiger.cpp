@@ -78,7 +78,7 @@ unsigned long GCATMatch[VNUMCATCMDS];
 // Make32BitStr
 // simply a 4 char CAT command in a single 32 bit word for easy compare
 //
-unsigned long Make32BitStr(char* Input)
+unsigned long Make32BitStr(const char* Input)
 {
   unsigned long Result;
   byte CharCntr;

@@ -19,9 +19,9 @@
 #include "globalinclude.h"
 #include "cathandler.h"
 #include <Arduino.h>
-#include <Nextion.h>
 
 #ifdef CONDITIONAL_LCD_UI
+#include <Nextion.h>
 
 //
 // global variables
