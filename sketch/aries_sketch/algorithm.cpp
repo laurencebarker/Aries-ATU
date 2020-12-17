@@ -140,7 +140,7 @@ SSweepSet GStage1Array[] =
   {false, false, 0, 210, 20, 0},            // 7MHz try1 loZ step C
   {false, true, 0, 210, 20, 0},             // 7MHz try1 loz step L
   {true, false, 0, 210, 20, 0},             // 7MHz try1 hiZ step C
-  {true, true, 0, 1210, 20, 0},              // 7MHz try1 hiZ step L
+  {true, true, 0, 210, 20, 0},              // 7MHz try1 hiZ step L
   {false, false, 0, 210, 20, 18},           // 7MHz try2 loZ step C
   {false, true, 0, 210, 20, 18},            // 7MHz try2 loz step L
   {true, false, 0, 210, 20, 18},            // 7MHz try2 hiZ step C
