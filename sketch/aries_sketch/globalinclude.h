@@ -16,7 +16,7 @@
 //
 // hardware and software version: send back to console on request
 //
-#define SWVERSION 6
+#define SWVERSION 7
 #define HWVERSION 1
 #define PRODUCTID 2                 // Aries
 
@@ -50,6 +50,12 @@
 // define this variable to stream ADC sample readings to the serial port
 //
 //#define CONDITIONAL_STREAM_ADCREADINGS 1
+
+//
+// define this variable to always enable "quick tune" at the start of the algorithm
+//
+#define CONDITIONAL_ALWAYS_QUICKTUNE 1
+
 
 
 #endif      // file sentry

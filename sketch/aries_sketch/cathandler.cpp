@@ -47,7 +47,9 @@ bool GQueuedFrequencyChange;                    // true if new frequency sent, b
 byte GPTTReleaseCount;                          // PTT release counter, for debouncing
 byte GTuneHWReleaseCount;                       // hardwired tune strobe release counter
 
-#define VFULLTUNETHRESHOLD 1000                 // freq (10KHz units) above which we always full tune
+unsigned int GFullTuneThreshold;                // freq (10KHz units) above which we always full tune
+
+#define VFULLTUNEFREQ 1000                      // freq (10KHz units) above which we always full tune
 
 // buffer to hold a set of solutions for all HF frequencies for one antenna
 // chosen to be an integer number of EEPROM pages, slightly larger than max size needed
@@ -155,6 +157,14 @@ void InitCATHandler(void)
   }
 //  EETest();
 //  EERead();
+
+// initialise algorithm operation: select whether quick tune always allowed
+#ifdef CONDITIONAL_ALWAYS_QUICKTUNE
+  GFullTuneThreshold = 10000;                 // always above 100MHz (never happens)
+#else
+  GFullTuneThreshold = VFULLTUNEFREQ;         // full tune always above 10MHz
+#endif
+
 }
 
 
@@ -405,7 +415,7 @@ void SetTuneOnOff(bool State)
     GPCTuneActive = State;
     if(State && GPTTPressed)
     {
-      if(GTunedFrequency10 >= VFULLTUNETHRESHOLD)
+      if(GTunedFrequency10 >= GFullTuneThreshold)
         InitiateTune(false);                              // full tune
       else
         InitiateTune(true);                               // try quick tune
@@ -706,7 +716,7 @@ void PttISR(void)
 //
     if(GPCTuneActive == true)
     {
-      if(GTunedFrequency10 >= VFULLTUNETHRESHOLD)
+      if(GTunedFrequency10 >= GFullTuneThreshold)
         InitiateTune(false);                              // full tune
       else
         InitiateTune(true);                               // try quick tune

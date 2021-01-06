@@ -8,7 +8,7 @@
 // the code is written for an Arduino Nano 33 IoT module
 //
 // hwdriver.cpp:  drives to mechanical relays
-// using a serial shift register, accessed by SPUI
+// using a serial shift register, accessed by SPI
 /////////////////////////////////////////////////////////////////////////
 
 #include <Arduino.h>
