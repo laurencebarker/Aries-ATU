@@ -435,7 +435,10 @@ void SetATUOnOff(bool State)
   if(GATUEnabled)
     SetupForNewAntenna();                       // get new settings
   else
+  {
     SetNullSolution();                          // set L, C values for ATU out of circuit
+    DriveSolution();                            // disable straightaway
+  }
 
 #ifdef CONDITIONAL_LCD_UI
   ShowATUEnabled(State);                        // debug

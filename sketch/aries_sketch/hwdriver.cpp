@@ -97,6 +97,7 @@ void SetAntennaSPI(int Antenna, bool IsRXAnt)
 {
 
   byte Ant = 0b000;                                         // clear bit 0 for antenna 1
+  byte OriginalRXAntennaWord;                               // value before call, to detect different
   
   if (Antenna == 2)
     Ant = 0b011;                                            // set bit 1&0 for antenna 2
@@ -105,17 +106,21 @@ void SetAntennaSPI(int Antenna, bool IsRXAnt)
 
   if(IsRXAnt)
   {
-    StoredAntennaRXTRValue = (StoredAntennaRXTRValue & 0b11111000);       // erase ond ant, and TX bit off
-    StoredAntennaRXTRValue |= Ant;                                      // add in new ant
+    OriginalRXAntennaWord = StoredAntennaRXTRValue;
+    StoredAntennaRXTRValue = (StoredAntennaRXTRValue & 0b11111000);       // erase old ant, and TX bit off
+    StoredAntennaRXTRValue |= Ant;                                        // add in new ant
+    if(StoredAntennaRXTRValue != OriginalRXAntennaWord)                   // update hardware if changed
+    {
 //
 // either send new data to SPI, or queue a shift
 // (this handles a race condition: just coming out of TX, already sending old RX antenna data when new RX antenna setting arrives)
 // if PTT is pressed, RX ant will get set anyway when TX deasserted
 //
-    if ((GPTTPressed == false) && (!GSPIShiftInProgress))
-      DriveSolution();
-    else
-      GResendSPI = true;
+      if ((GPTTPressed == false) && (!GSPIShiftInProgress))
+        DriveSolution();
+      else
+        GResendSPI = true;
+    }
   }
   else
   {
