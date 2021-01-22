@@ -21,6 +21,11 @@
 //
 extern volatile bool GPTTPressed;                      // true if PTT pressed (ie TX active). Set by interrupt
 extern bool GPCTuneActive;                             // true if TUNE is in progress as signalled by PC (note PTT will be detected first)
+extern bool GATUEnabled;                               // true if the ATU is enabled
+extern bool GQuickTuneEnabled;                         // true if quick tune allowed
+extern bool GValidSolution;                            // true if a valid tune solution found
+extern unsigned int GTunedFrequency10;                 // frequency from THETIS, in 10KHz resolution. 0 = DC
+extern byte GTXAntenna;                                // selected TX antenna (1-3; 0 if not set)
 
 
 
@@ -71,6 +76,23 @@ void HandleCATCommandStringParam(ECATCommands MatchedCAT, char* ParsedParam);
 //
 // eeprom/PC interface functions
 //
+//
+// function to write, read new LCD display page
+//
+void EEWritePage(byte Value);
+byte EEReadPage();
+
+//
+// function to write, read  new display average/peak mode
+//
+void EEWritePeak(bool Value);
+byte EEReadPeak();
+
+//
+// function to write, read new ATU enabled/disabled for standalone mode
+//
+void EEWriteEnabled(bool Value);
+byte EEReadEnabled();
 
 //
 // write solution for current antenna and frequency to EEPROM
@@ -82,5 +104,12 @@ void SetTuneResult(bool Successful, byte Inductance, byte Capacitance, bool IsHi
 // timer tick
 //
 void CatHandlerTick();
+
+//
+// handle ATU on/off CAT message from PC
+// or standalone mode: from display click
+//
+void SetATUOnOff(bool State);
+
 
 #endif //not defined

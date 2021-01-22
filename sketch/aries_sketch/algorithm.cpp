@@ -40,6 +40,19 @@ enum EAlgorithmState
 }; 
 
 
+const char* StateNames[]=
+{
+  "Idle: ",
+  "Coarse stage 1, row=",
+  "Coarse stage 2: ",
+  "1st Mid Step: ",
+  "2nd Mid Step: ",
+  "1st Fine Step: ",
+  "2nd Fine Step: ",
+  "Write EEPROM"
+};
+
+
 //
 // structure for tune parameters
 //
@@ -89,7 +102,7 @@ struct SResult
 // the entire algorithm can be changed by replacing this table
 //
 #define VNUMTUNEROWS 6                // this tells how far to step
-STuneParams GTuneParamArray[] = 
+const STuneParams GTuneParamArray[] = 
 // FMax,startrow,#rows, Lmax, Cmax, S1bStep, S2Mid+-, S2MidStep, S2Fine+- 
 {
   {1, 0, 12, 255, 255, 24, 32, 4, 8},        // 1.8MHz band
@@ -108,7 +121,7 @@ STuneParams GTuneParamArray[] =
 #define VNUMSTAGE1ROWS 72                 // this tells how far to step
 
 
-SSweepSet GStage1Array[] = 
+const SSweepSet GStage1Array[] = 
 // highZ,LSweep, MinStepped,MaxStepped, Step, Fixed
 {
   {false, false, 0, 255, 24, 0},            // 1.8MHz try1 loZ step C
@@ -202,13 +215,10 @@ bool GIsQuickTune;              // true if we are trying a quick tune
 bool GTuneActive;               // bool set true when algorithm running. Clear it to terminate.
 
 //
-// algorithm variables/
+// algorithm variables
 //
 byte GFreqRow;                  // row number on freq data table (GTuneParamArray)
 byte GStage1Row;                // row number in stage 1 table (GStage1Array). Offset, beginning at zero 
-bool GCurrentZ;                 // high/low impedance setting
-byte GCurrentL;                 // current inductance value
-// byte GCurrentC;              // current capacitance value
 //
 // params of min VSWR found in an algorithm state, and the current setting
 //
@@ -217,12 +227,20 @@ SResult GBestFoundSoFar;        // best found so far
 SSweepSet GCurrentSweep;        // paramters for current sweep
 
 //
+// debug
+//
+#define VDEBTEXTSIZE 80
+char DebugText[VDEBTEXTSIZE];
+int DebugCounter;
+
+//
 // function to initialise algorithm code
 //
 void InitialiseAlgorithm(void)
 {
   GTuneActive = false;  
   GAlgState = eAlgIdle;
+  GFreqRow = 0;
 }
 
 
@@ -255,59 +273,11 @@ void FindFreqRow(byte FrequencyMHz)
 
 
 //
-// debug code - get state name as a string
-//
-String GetStateName(void)
-{
-  String StateName;
-//
-// find name for sequencer state
-//
-  switch(GAlgState)
-  {
-    case eAlgIdle:
-      StateName = "Idle: ";
-      break;
-      
-    case eAlgCoarse1:
-      StateName = "Coarse stage 1, row=";
-      StateName += GStage1Row;
-      StateName += ": ";
-      break;
-
-    case eAlgCoarse2:
-      StateName = "Coarse stage 2: ";
-      break;
-
-    case eAlgMid1:
-      StateName = "1st Mid Step: ";
-      break;
-
-    case eAlgMid2:
-      StateName = "2nd Mid Step: ";
-      break;
-
-    case eAlgFine1:
-      StateName = "1st Fine Step: ";
-      break;
-
-    case eAlgFine2:
-      StateName = "2nd Fine Step: ";
-      break;
-
-    case eAlgEEPROMWrite:
-      StateName = "Write EEPROM: ";
-      break;
-  }
-  return StateName;
-}
-
-
-//
 // debug code - print solution to serial
-// given a string to print first. 
+// global string to print first. 
 // 2nd parameter sets whether to print current solution(true) or best found.
-void PrintSolution(String Text, bool IsCurrent)
+//
+void PrintSolution(bool IsCurrent)
 {
   float VSWRPrintValue;
   SResult* StructPtr;
@@ -319,7 +289,7 @@ void PrintSolution(String Text, bool IsCurrent)
 //
 // print state name, then the current solution
 //  
-  Serial.print(Text);
+  Serial.print(DebugText);
   VSWRPrintValue = ((float)(StructPtr -> VSWR)) / 100.0;
   Serial.print("VSWR=");
   Serial.print(VSWRPrintValue);
@@ -356,6 +326,41 @@ void SendCandidateSolution(bool IsCurrent)
   DriveSolution();
 }
 
+
+
+// 
+// function to return VSWR value
+// returns 100*VSWR; clipped to 65535
+// with option to simulate for algorithm debugging
+//
+int GetVSWR(void)
+{
+  int VSWR;
+
+  VSWR =  int(GVSWR * 100.0);                    
+//
+// finally optional debug code: calculate a simulated VSWR value with a minimum at (VLTARGET, VCTARGET)  
+// this can calculate a "noise free" VSWR value in 2 ways.
+// if algorithm is searching the desired Low or High Z region, calculated a min at defined L&C value
+// if algorithm is searching the wrong region, give a minimum at (0,0) that just keeps getting bigger
+// cloose the desired low/high Z region with VHILOTARGET
+//
+#ifdef CONDITIONAL_ALG_SIMVSWR
+#define VSWRMIN 140                               // 2.0
+#define VLTARGET 27                               // L value we should get the minimum at
+#define VCTARGET 59                               // C value we should get the minimum at
+#define VLSLOPE 5
+#define VCSLOPE 8
+#define VHILOTARGET 0                             // 1 for min VSWR in high Z range; 0 for min VSWR in low Z range
+
+  if((GCurrentSetting.HighZ && (VHILOTARGET == 1)) || (!GCurrentSetting.HighZ && (VHILOTARGET==0)))                   // if we are looking in the right region 
+    VSWR = VSWRMIN + VLSLOPE*abs(GCurrentSetting.LValue - VLTARGET) + VCSLOPE*abs(GCurrentSetting.CValue - VCTARGET);
+  else
+    VSWR = 10*VSWRMIN+VLSLOPE*GCurrentSetting.LValue + VCSLOPE * GCurrentSetting.CValue;
+#endif
+  
+  return VSWR;
+}
 
 
 //
@@ -426,9 +431,6 @@ bool GetStage1Row(bool IsFirst)
 //
 void AssessTune(void)
 {
-  String Text;                                                  // debug labelling
-  bool GotRow;                                                  // true if we find 1st row of tune
-  
   if (!GIsQuickTune)                                            // if this was a full tune
   {
     if (GBestFoundSoFar.VSWR < VSUCCESSVSWR)                    // if successful full tune
@@ -437,8 +439,8 @@ void AssessTune(void)
       SendCandidateSolution(false);
       SetTuneResult(true, GBestFoundSoFar.LValue, GBestFoundSoFar.CValue, GBestFoundSoFar.HighZ);
 #ifdef CONDITIONAL_ALG_DEBUG
-      Text = "Full tune: successful best found: ";
-      PrintSolution(Text, false);                               // print best solution to serial port
+      strcpy(DebugText, "Full tune: successful best found: ");
+      PrintSolution(false);                               // print best solution to serial port
 #endif
     }
     else                                                        // unsuccessful full tune
@@ -447,8 +449,8 @@ void AssessTune(void)
       SendCandidateSolution(false);
       SetTuneResult(false, GBestFoundSoFar.LValue, GBestFoundSoFar.CValue, GBestFoundSoFar.HighZ);    // sends fail message and writes "no solution"
   #ifdef CONDITIONAL_ALG_DEBUG
-      Text = "Full tune FAIL: unsuccessful best found: ";               
-      PrintSolution(Text, false);                               // print best solution to serial port
+      strcpy(DebugText, "Full tune FAIL: unsuccessful best found: ");
+      PrintSolution(false);                               // print best solution to serial port
   #endif
     }
   }
@@ -462,8 +464,8 @@ void AssessTune(void)
     SendCandidateSolution(false);
     SetTuneResult(true, GBestFoundSoFar.LValue, GBestFoundSoFar.CValue, GBestFoundSoFar.HighZ);
 #ifdef CONDITIONAL_ALG_DEBUG
-    Text = "Quick tune: successful best found: ";
-    PrintSolution(Text, false);                                 // print best solution to serial port
+    strcpy(DebugText, "Quick tune: successful best found: ");
+    PrintSolution(false);                                 // print best solution to serial port
 #endif
   }
   else                                                          // unsuccessful quick - initiate full tune
@@ -478,7 +480,7 @@ void AssessTune(void)
 //
 // copy out the first row of the stage 1 algorithm table
 //
-    GotRow = GetStage1Row(true);
+    GetStage1Row(true);
     SendCandidateSolution(true);                                      // drive hardware
   }
 }
@@ -557,7 +559,7 @@ void AlgorithmTick(void)
   bool ValidNewRow;                                     // true if new stage 1 row available
   bool ValidNewStep = false;                            // set true if not yet time to move onto next step
   byte SweepRange;                                      // sweep range
-  String Text;
+  char Str[10];
 
 //
 // see if terminated mid-tune by the PC
@@ -565,9 +567,6 @@ void AlgorithmTick(void)
   if((GTuneActive == false) && (GAlgState != eAlgIdle))
   {
     GAlgState = eAlgIdle;
-#ifdef CONDITIONAL_LCD_UI    
-    LCD_UI_SetTuning(false);
-#endif
   }
   
 //
@@ -583,8 +582,14 @@ void AlgorithmTick(void)
       GBestFoundSoFar.IsSweepingL = GCurrentSweep.IsSweepingL;
     }
 #ifdef CONDITIONAL_ALG_DEBUG
-    Text = GetStateName();
-    PrintSolution(Text, true);                // print current step and its VSWR
+    strcpy(DebugText, StateNames[(byte)GAlgState]);
+    if(GAlgState == eAlgCoarse1)
+    {
+      mysprintf(Str, GStage1Row, false);
+      strcat(DebugText, Str);
+      strcat(DebugText, ": ");
+    }
+    PrintSolution(true);                // print current step and its VSWR
 #endif
 //
 // now work out proposed next step (if state changes, this may be overridden)
@@ -602,6 +607,12 @@ void AlgorithmTick(void)
       break;
 
     case eAlgCoarse1: 
+//      if(--DebugCounter <= 0)
+//      {
+//        Serial.println("finished");
+//        GTuneActive = false;
+//        GAlgState = eAlgIdle;
+//      }
       if(!ValidNewStep)                               // if we have exhausted current search, try new row
       {
         ValidNewRow = GetStage1Row(false);            // try move to next row. 
@@ -685,9 +696,6 @@ void AlgorithmTick(void)
     case eAlgEEPROMWrite:
       GAlgState = eAlgIdle;                         // finished calculating
       GTuneActive = false;
-#ifdef CONDITIONAL_LCD_UI
-      LCD_UI_SetTuning(false);
-#endif
       break;
   }
 //
@@ -706,6 +714,7 @@ void AlgorithmTick(void)
 void CancelAlgorithm(void)
 {
   GTuneActive = false;
+  GAlgState = eAlgIdle;
 }
 
 
@@ -757,4 +766,8 @@ void InitiateTune(bool StartQuick)
   GTuneActive = true;                                               // set active
   SendCandidateSolution(true);                                      // drive hardware
   GBestFoundSoFar.VSWR = VMAXVSWR;                                  // initialise VSWR best value found = worst possible
+//  DebugCounter = 320;        // 5s
+//  Serial.println("Started");
+//  GAlgState = eAlgCoarse1;                                          // set state
+//  GTuneActive = true;                                               // set active
 }

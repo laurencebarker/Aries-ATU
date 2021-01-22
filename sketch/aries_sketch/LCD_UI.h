@@ -13,6 +13,21 @@
 #define __lcd_ui_h
 
 
+
+//
+// this type enumerates the Nextion display pages:
+//
+enum EDisplayPage
+{
+  eSplashPage,                              // startup splash page
+  eCrossedNeedlePage,                       // crossed needle VSWR page display
+  ePowerBargraphPage,                       // linear watts bargraph page display
+  eMeterPage,                               // analogue power meter
+  eEngineeringPage                          // engineering page with raw ADC values
+};
+
+
+
 //
 // initialise the UI and its sub-devices
 //
@@ -31,27 +46,23 @@ void LCD_UI_Tick(void);
 void LCD_UI_EncoderTick(bool OddEncoder);
 
 //
-// set whether tuning or not
-// true if tune is in progress
-//
-void LCD_UI_SetTuning(bool);
-
-//
 // force LCD update
 //
 void SetTuneChanged();
 
 //
-// set forward power and VSWR
-// VSWR is passed as 10*"real" VSWR, to allow insertion of 1 decimal place
+// local version of "sprintf like" function
+// Adds a decimal point before last digit if 3rd parameter set
+// note integer value is signed and may be negative!
 //
-void SetPwr(int Power);
-void SetVSWR(int VSWR);
+unsigned char mysprintf(char *dest, int Value, bool AddDP);
+
 
 // debug
 void ShowFrequency(char* FreqString);
-void ShowTune(bool IsTune);
+void ShowTune();
 void ShowAntenna(int Antenna);
 void ShowATUEnabled(bool IsEnabled);
+
 
 #endif

@@ -67,12 +67,6 @@ void setup()
 //
   InitialiseHardwareDrivers();
 
-//
-// initialise UI
-//
-#ifdef CONDITIONAL_LCD_UI
-  LCD_UI_Initialise();
-#endif
 
 //
 // initialise algorithm
@@ -83,6 +77,13 @@ void setup()
 //
   InitCAT();
   InitCATHandler();
+
+//
+// initialise UI
+//
+#ifdef CONDITIONAL_LCD_UI
+  LCD_UI_Initialise();
+#endif
 }
 
 
@@ -187,15 +188,15 @@ void ConfigIOPins(void)
 
   pinMode(VPINTR_PTTOUT, OUTPUT);
   pinMode(VPINENCODER1PB, INPUT_PULLUP);                // normal pushbutton
-  pinMode(VPINPUSHBUTTONTUNE, INPUT_PULLUP);            // normal pushbutton
   pinMode(VPINRELAYLOHIZ, OUTPUT);                      // relay o/p
   pinMode(VPINSERIALLOAD, OUTPUT);                      // serial data latch o/p
   pinMode(VPINPTT, INPUT_PULLUP);                       // PTT input
   pinMode(VPINLED, OUTPUT);                             // status LED (normal D13 ise used for SPI)
 
   pinMode(VPINHWTUNECMD, INPUT_PULLUP);                 // hardwired TUNE command input
-  pinMode(VPINFREQCOUNT, INPUT);                        // frequency count input, from prescaler
-  pinMode (VPINCOUNTENABLE, OUTPUT);                    // count enable output
+  pinMode(VPINSTANDALONEJUMPER, INPUT);                 // jumper input for STANDALONE
+  pinMode(VPINSTANDALONEANTA, INPUT_PULLUP);            // wired input for antenna select
+  pinMode(VPINSTANDALONEANTB, INPUT_PULLUP);            // wired input for antenna select
   
   
   digitalWrite(VPINRELAYLOHIZ, LOW);                    // deactivate relay
@@ -205,5 +206,5 @@ void ConfigIOPins(void)
   attachInterrupt(VPINPTT, PttISR, FALLING);
   
 // h/w tune interrupt needs to catch falling edge to initiate a tune request. (temp disconnected)
-//  attachInterrupt(VPINHWTUNECMD, HWTuneISR, FALLING);
+  attachInterrupt(VPINHWTUNECMD, HWTuneISR, FALLING);
 }

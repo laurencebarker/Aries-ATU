@@ -22,13 +22,14 @@
 enum ECATCommands
 {
   eZZTU,                          // TUNE on/off (from PC to Arduino)
-  eZZTV,                          // frequency change (from PC to Arduino)
+  eZZFT,                          // frequency change (from PC to Arduino)
   eZZOA,                          // RX antenna change (from PC to Arduino)
   eZZOC,                          // TX antenna change (from PC to Arduino)
   eZZOZ,                          // erase tuning solutions (from PC to Arduino)
   eZZZE,                          // other encoder for fine tune L/C
   eZZOX,                          // Tune success (from Arduino to PC)
   eZZOV,                          // ATU enable (from PC to Arduino)
+  eZZOY,                          // ATU Quick Tune Enable
   eZZZS,                          // s/w version
   eNoCommand                      // this is an exception condition
 };

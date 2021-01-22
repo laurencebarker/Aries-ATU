@@ -34,6 +34,7 @@
 #define EEPAGESIZE 128
 unsigned int GTunedFrequency10;                 // frequency from THETIS, in 10KHz resolution. 0 = DC
 bool GATUEnabled;                               // true if the ATU is enabled
+bool GQuickTuneEnabled;                         // true if quick tune allowed
 unsigned int GQueuedCATFrequency;               // frequency passed by tHETIS if TX was active.
 byte GRXAntenna;                                // selected RX antenna (1-3; 0 if not set)
 byte GTXAntenna;                                // selected TX antenna (1-3; 0 if not set)
@@ -46,10 +47,12 @@ bool GATUIsTuned;                               // true if L/C settings are alre
 bool GQueuedFrequencyChange;                    // true if new frequency sent, but tX was in progress
 byte GPTTReleaseCount;                          // PTT release counter, for debouncing
 byte GTuneHWReleaseCount;                       // hardwired tune strobe release counter
+bool GValidSolution;                            // true if a valid tune solution found
+unsigned int GFreqPollTicks;                    // period in ticks until next frequency poll
 
-unsigned int GFullTuneThreshold;                // freq (10KHz units) above which we always full tune
 
 #define VFULLTUNEFREQ 1000                      // freq (10KHz units) above which we always full tune
+#define VFREQPOLLINTERVAL 312                   // units of ticks. 5s between freq polls
 
 // buffer to hold a set of solutions for all HF frequencies for one antenna
 // chosen to be an integer number of EEPROM pages, slightly larger than max size needed
@@ -159,12 +162,9 @@ void InitCATHandler(void)
 //  EERead();
 
 // initialise algorithm operation: select whether quick tune always allowed
-#ifdef CONDITIONAL_ALWAYS_QUICKTUNE
-  GFullTuneThreshold = 10000;                 // always above 100MHz (never happens)
-#else
-  GFullTuneThreshold = VFULLTUNEFREQ;         // full tune always above 10MHz
-#endif
 
+  if (GStandaloneMode)                        // for standalone mode, load "enabled" state from EEPROM
+    GATUEnabled = EEReadEnabled();
 }
 
 
@@ -209,6 +209,7 @@ void MakeSoftwareVersionMessage(void)
 void MakeTuneSuccessMessage(bool Result)
 {
   MakeCATMessageBool(eZZOX,Result);
+  GValidSolution = Result;
 }
 
 
@@ -294,6 +295,7 @@ void SetTuneResult(bool Successful, byte Inductance, byte Capacitance, bool IsHi
   unsigned int EEPROMStartAddress;                    // start address of solution to write back
   int Cntr;
 
+  GPCTuneActive = false;                              // set tune not active
 //
 // get RAM and EEPROM start address
 //
@@ -332,6 +334,73 @@ void SetTuneResult(bool Successful, byte Inductance, byte Capacitance, bool IsHi
 }
 
 
+#define VEEDISPLAYPAGELOC 0x1FFF0L
+#define VEEPEAKLOC 0x1FFF0L
+#define VEEENABLEDLOC 0x1FFF0L
+
+//
+// function to write new LCD display page
+//
+void EEWritePage(byte Value)
+{
+  myEEPROM.write(VEEDISPLAYPAGELOC, Value);
+}
+
+//
+// function to read new LCD display page
+//
+byte EEReadPage()
+{
+  int Result;
+  Result = myEEPROM.read(VEEDISPLAYPAGELOC);
+  if((Result == 0) || (Result > 4))
+    Result = 4;
+  return (byte)Result;
+}
+
+
+//
+// function to write new display average/peak mode
+//
+void EEWritePeak(bool Value)
+{
+  byte Data;
+
+  Data = (byte)Value;
+  myEEPROM.write(VEEPEAKLOC, Data);
+}
+
+//
+// function to read new display average/peak mode
+//
+byte EEReadPeak()
+{
+  int Result;
+  Result = myEEPROM.read(VEEPEAKLOC);
+  return (bool)Result;
+}
+
+
+//
+// function to write new ATU enbled/disabled for standalone mode
+//
+void EEWriteEnabled(bool Value)
+{
+  byte Data;
+
+  Data = (byte)Value;
+  myEEPROM.write(VEEENABLEDLOC, Data);
+}
+
+//
+// function to read new ATU enbled/disabled for standalone mode
+//
+byte EEReadEnabled()
+{
+  int Result;
+  Result = myEEPROM.read(VEEENABLEDLOC);
+  return (bool)Result;
+}
 
 ///////////////////////////////// process CAT commands ///////////////////////
 
@@ -415,12 +484,8 @@ void SetTuneOnOff(bool State)
     GPCTuneActive = State;
     if(State && GPTTPressed)
     {
-      if(GTunedFrequency10 >= GFullTuneThreshold)
-        InitiateTune(false);                              // full tune
-      else
-        InitiateTune(true);                               // try quick tune
+      InitiateTune(GQuickTuneEnabled);                               // try quick tune
     }
-//  ShowTune(State);
   }
 }
 
@@ -428,9 +493,13 @@ void SetTuneOnOff(bool State)
 
 //
 // handle ATU on/off CAT message from PC
+// or standalone mode: from display click
 //
 void SetATUOnOff(bool State)
 {
+  if((State != GATUEnabled) && GStandaloneMode)               // if state has changed, save it to EEPROM
+    EEWriteEnabled(State);
+    
   GATUEnabled = State;
   if(GATUEnabled)
     SetupForNewAntenna();                       // get new settings
@@ -446,6 +515,13 @@ void SetATUOnOff(bool State)
 }
 
 
+//
+// handle quick tune on/off message from PC
+//
+void SetATUQuickTune(bool State)
+{
+  GQuickTuneEnabled = State;
+}
 
 //
 // handle frequency change CAT message from PC
@@ -577,9 +653,6 @@ void HandleLCFineTune(int Command)
       DriveSolution();                                    // send to shift registers
   }
 
-#ifdef CONDITIONAL_LCD_UI
-  LCD_UI_SetTuning(false);             // trigger LCD redraw
-#endif
 }
 
 
@@ -642,6 +715,10 @@ void HandleCATCommandBoolParam(ECATCommands MatchedCAT, bool ParsedBool)
     case eZZOV:                                                       // ATU on/off
       SetATUOnOff(ParsedBool);
       break;
+
+    case eZZOY:                                                       // ATU quick Tune
+      SetATUQuickTune(ParsedBool);
+      break;
   }
 }
 
@@ -653,7 +730,7 @@ void HandleCATCommandStringParam(ECATCommands MatchedCAT, char* ParsedParam)
 {
   switch(MatchedCAT)
   {
-    case eZZTV:                                                       // frequency change message
+    case eZZFT:                                                       // frequency change message
       SetNewFrequency(ParsedParam);
       break;
   }
@@ -661,7 +738,6 @@ void HandleCATCommandStringParam(ECATCommands MatchedCAT, char* ParsedParam)
 
 
 
-/*
 //
 // tune hardwired input ISR handler
 // this triggers on falling edge, to trigger a "tune request"
@@ -682,7 +758,6 @@ void HWTuneISR(void)
       InitiateTune(true);
   }
 }
-*/
 
 
 //
@@ -719,10 +794,7 @@ void PttISR(void)
 //
     if(GPCTuneActive == true)
     {
-      if(GTunedFrequency10 >= GFullTuneThreshold)
-        InitiateTune(false);                              // full tune
-      else
-        InitiateTune(true);                               // try quick tune
+      InitiateTune(GQuickTuneEnabled);                               // try quick tune
     }
   }
 }
@@ -734,6 +806,8 @@ void PttISR(void)
 //
 void CatHandlerTick()
 {
+  byte AntennaSelect = 0;                                  // ant input for standalone mode 
+  
   // see if we have a queuesd frequency change, while PTT was pressed; handle when not pressed
   if((!GPTTPressed) && (GQueuedFrequencyChange))
   {
@@ -762,7 +836,6 @@ void CatHandlerTick()
     }
   }
 
-/*
   // check Tune strobe state state. First decrement the debounce count; TUNE won't press or release if not zero.
   // then if the debounce count, see if TUNE needs releasing.
   if(GTuneHWReleaseCount != 0)
@@ -774,11 +847,30 @@ void CatHandlerTick()
 #ifdef CONDITIONAL_ALG_DEBUG
       Serial.println("no TUNE");                                // debug to confirm state
 #endif
-      
       GTuneHWReleaseCount = 2;
       GTuneHWPressed = false;
     }
   }
-*/
 
+//
+// in standalone mode, poll for frequency and check antenna select inputs
+//
+  if(GStandaloneMode)                                     // in standalone mode, poll for frequency
+  {
+    if(GFreqPollTicks == 0)                               // if timed out, reload & send msg
+    {
+      GFreqPollTicks = VFREQPOLLINTERVAL;
+      MakeCATMessageNoParam(eZZFT);                       // TX freq request
+    }
+    else
+      GFreqPollTicks--;
+
+    if(digitalRead(VPINSTANDALONEANTA) == LOW)
+      AntennaSelect |= 1;
+    if(digitalRead(VPINSTANDALONEANTB) == LOW)
+      AntennaSelect |= 2;
+    AntennaSelect+= 1;
+    if(AntennaSelect != GTXAntenna)
+      HandleTXAntennaChange(AntennaSelect);
+  }
 }

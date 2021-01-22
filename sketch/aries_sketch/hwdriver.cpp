@@ -23,18 +23,21 @@
 //
 // global variables
 //
+bool GStandaloneMode;                       // true if ATU is in standalone mode
 byte StoredLValue;                          // L=0-255
 byte StoredCValue;                          // C=0-255
 byte StoredAntennaRXTRValue;                // RX setting: TR (bit 0) ant select (bits 2:1)
 byte StoredAntennaTXTRValue;                // TX setting: TR (bit 0) ant select (bits 2:1)
 bool StoredHiLoZ;                           // true if Lo impedance
 float GVSWR;                                // calculated VSWR value
+unsigned int GForwardPower;                 // forward power (W)
 
 bool GResendSPI;                            // true if SPI data must be shifted again
 bool GSPIShiftInProgress;                   // true if SPI shify is currently happening
 
 #define VVSWR_HIGH 100.0F                   // to avoid divide by zero
-#define VLINEVOLTSCALE 0.02057F             // convert ADC reading to volts (3.3V VCC, 12 bit ADC)
+//#define VLINEVOLTSCALE 0.02057F             // convert ADC reading to volts (3.3V VCC, 12 bit ADC)
+#define VLINEVOLTSCALE 0.2057F             // convert ADC reading to volts (3.3V VCC, 12 bit ADC) TEMP FOR TEST
 
 unsigned int GVf, GVr;                      // forward and reverse voltages (raw ADC measurements)
 
@@ -82,13 +85,23 @@ void InitialiseHardwareDrivers(void)
 
   DriveSolution();
   GCircBufferPtr = 0;
+
+//
+// finally read the standalone mode jumper.
+// if input LOW, jumper is inserted and we are in standalone mode.
+// this pin is also the SPI MISO pin, but works for digital in. 
+//
+  if(digitalRead(VPINSTANDALONEJUMPER) == HIGH)
+    GStandaloneMode = false;
+  else
+    GStandaloneMode = true;
 }
 
 
 
 
 //
-// functions to set antenna (numbered 1-3)
+// functions to set antenna (numbered 1-4, but 4 selects external relay 3)
 // the SPI driver will shift either StoredAntennaRXTR or StoredAntennaTXTR
 // for RX antenna, need to drive its setting out if we are in RX mode
 // for TX antenna, if already in TX we do NOT set it; gets set on next TX
@@ -101,8 +114,8 @@ void SetAntennaSPI(int Antenna, bool IsRXAnt)
   
   if (Antenna == 2)
     Ant = 0b011;                                            // set bit 1&0 for antenna 2
-  else if (Antenna == 3)
-    Ant = 0b101;                                            // set bit 2&0 for antenna 3
+  else if ((Antenna == 3) || (Antenna == 4))
+    Ant = 0b101;                                            // set bit 2&0 for antenna 3 or 4
 
   if(IsRXAnt)
   {
@@ -185,7 +198,7 @@ void HWDriverTick(void)
   int FwdVoltReading, RevVoltReading;               // raw ADC samples
   float Unit;                                       // converted measurement
   float VFwd, VRev;                                 // forward, reverse line voltages
-  int Power, DisplayVSWR;                           // values for display
+  int DisplayVSWR;                                  // values for display
 
   FwdVoltReading = analogRead(VPINVSWR_FWD);        // read forward power sensor (actually line volts)
   RevVoltReading = analogRead(VPINVSWR_REV);        // read reverse power sensor (actually line volts)
@@ -196,7 +209,7 @@ void HWDriverTick(void)
 // write values to circular buffer
 // adjust pointer first
 //
-  if(GCircBufferPtr++ >= VNUMADCAVG)
+  if(++GCircBufferPtr >= VNUMADCAVG)
     GCircBufferPtr = 0;
   GVFArray[GCircBufferPtr] = FwdVoltReading;
   GVRArray[GCircBufferPtr] = RevVoltReading;
@@ -218,29 +231,22 @@ void HWDriverTick(void)
 #endif
   
   Unit = VFwd * VFwd/50;                            // calculate power in 50 ohm line
-  Power = int(Unit);
+  GForwardPower = int(Unit);
 
-
-#ifdef CONDITIONAL_LCD_UI  
-  SetPwr(Power);
-#endif
 //
 // finally calculate VSWR
 // GVSWR stored as float
+// below 5W, just report 1
 //
-  if (VFwd > VRev)
+  if (GForwardPower < 5)
+    GVSWR = 1.0;
+  else if (VFwd > VRev)
     GVSWR = (VFwd+VRev) / (VFwd - VRev);                 // VSWR
   else
     GVSWR = VVSWR_HIGH;                                  // unvalid result
 
   if (GVSWR > VVSWR_HIGH)                                // clip at impossibly high value
     GVSWR = VVSWR_HIGH;
-    
-  DisplayVSWR = (int)(GVSWR * 10.0);                     // 1 decimal place int 
-
-#ifdef CONDITIONAL_LCD_UI  
-  SetVSWR(DisplayVSWR);
-#endif
 }
 
 
@@ -275,93 +281,6 @@ void GetADCMeanAndPeak(bool IsVF, unsigned int* Mean, unsigned int* Peak)
   }
   *Mean = Total / VNUMADCAVG;                        // get mean
   *Peak = Largest - Smallest;
-}
-
-// 
-// function to return VSWR value
-// returns 100*VSWR; clipped to 65535
-//
-int GetVSWR(void)
-{
-  int VSWR;
-
-  VSWR =  int(GVSWR * 100.0);                    
-
-//
-// finally optional debug code: calculate a simulated VSWR value with a minimum at (VLTARGET, VCTARGET)  
-// this can calculate a "noise free" VSWR value in 2 ways.
-// if algorithm is searching the desired Low or High Z region, calculated a min at defined L&C value
-// if algorithm is searching the wrong region, give a minimum at (0,0) that just keeps getting bigger
-// cloose the desired low/high Z region with VHILOTARGET
-//
-#ifdef CONDITIONAL_ALG_SIMVSWR
-#define VSWRMIN 140                               // 2.0
-#define VLTARGET 27                               // L value we should get the minimum at
-#define VCTARGET 59                               // C value we should get the minimum at
-#define VLSLOPE 5
-#define VCSLOPE 8
-#define VHILOTARGET 0                             // 1 for min VSWR in high Z range; 0 for min VSWR in low Z range
-
-  if((StoredHiLoZ && (VHILOTARGET == 1)) || (!StoredHiLoZ && (VHILOTARGET==0)))                   // if we are looking in the right region 
-    VSWR = VSWRMIN + VLSLOPE*abs(StoredLValue - VLTARGET) + VCSLOPE*abs(StoredCValue - VCTARGET);
-  else
-    VSWR = 10*VSWRMIN+VLSLOPE*StoredLValue + VCSLOPE * StoredCValue;
-#endif
-  
-  return VSWR;
-}
-
-
-
-//
-// tables of inductance and capacitance per relay bit (bit 0 first)
-// capacitance in pF; inductance in nH
-// these tables are for the AT11
-//
-int GCapacitorValues[] = 
-{
-  10, 20, 39, 82, 150, 330, 680, 1360 
-};
-
-int GInductorValues[] = 
-{
-  40, 80, 160, 320, 640, 1280, 2560, 5120
-};
-
-
-//
-// functions to get the current inductance and capacitance, in nH and pF
-//
-int GetCapacitanceValue(void)
-{
-  byte Setting;                               // current binary value
-  byte Bit;                                   // bit counter
-  int Result = 0;
-
-  Setting = StoredCValue;                     // get current binary setting
-  for(Bit=0; Bit<8; Bit++)
-  {
-    if(Setting & 1)                           // if bottom bit set, add in table value
-      Result += GCapacitorValues[Bit];
-    Setting = Setting >> 1;                   // shift right to text next bit
-  }
-  return Result;  
-}
-
-int GetInductanceValue(void)
-{
-  byte Setting;                               // current binary value
-  byte Bit;                                   // bit counter
-  int Result = 0;
-
-  Setting = StoredLValue;                     // get current binary setting
-  for(Bit=0; Bit<8; Bit++)
-  {
-    if(Setting & 1)                           // if bottom bit set, add in table value
-      Result += GInductorValues[Bit];
-    Setting = Setting >> 1;                   // shift right to text next bit
-  }
-  return Result;  
 }
 
 
@@ -416,5 +335,68 @@ void DriveSolution(void)
   if(StoredHiLoZ == true)
     digitalWrite(VPINRELAYLOHIZ, HIGH);     // high Z
   else
-    digitalWrite(VPINRELAYLOHIZ, LOW);     // low Z
+   digitalWrite(VPINRELAYLOHIZ, LOW);     // low Z
+}
+
+
+//
+// find peak power by searching buffer
+// returns a power peak value
+// parameter true for forward power
+//
+unsigned int FindPeakPower(bool IsFwdPower)
+{
+  unsigned int* Ptr;                          // pointer to array
+  byte Cntr;                                  // loop counter
+  unsigned int Largest = 0;                   // biggest and smallest found
+  unsigned int Reading;
+  float Volts, Power;
+
+  if(IsFwdPower)                                    // get array pointer                                     
+    Ptr = GVFArray;
+  else
+    Ptr = GVRArray;
+
+  for(Cntr=0; Cntr < VNUMADCAVG; Cntr++)
+  {
+    Reading = *Ptr++;
+    Largest = max(Largest, Reading);
+  }
+  Volts = (float)Largest * VLINEVOLTSCALE;              // forward line RMS voltage
+  Power = Volts * Volts/50;                             // calculate power in 50 ohm line
+  return (unsigned int)Power;
+}
+
+
+
+//
+// returns an average power value
+// parameter true for forward power
+//
+unsigned int GetPowerReading(bool IsFwdPower)
+{
+  unsigned int* Ptr;                          // pointer to array
+  byte Cntr;                                  // loop counter
+  unsigned long Total = 0;                    // total value found
+  unsigned int Reading;
+  float Volts, Power;
+
+//
+// average the array of voltage readings
+//
+  if(IsFwdPower)                              // get array pointer                                     
+    Ptr = GVFArray;
+  else
+    Ptr = GVRArray;
+
+  for(Cntr=0; Cntr < VNUMADCAVG; Cntr++)
+  {
+    Reading = *Ptr++;
+    Total += Reading;
+  }
+  Total = Total/VNUMADCAVG;                   // mean value
+  Volts = (float)Total * VLINEVOLTSCALE;    // forward line RMS voltage
+  
+  Power = Volts * Volts/50;                            // calculate power in 50 ohm line
+  return (unsigned int)Power;
 }

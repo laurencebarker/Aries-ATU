@@ -16,9 +16,12 @@
 #include <arduino.h>
 
 
+extern bool GStandaloneMode;                       // true if ATU is in standalone mode
 extern bool GResendSPI;                            // true if SPI data must be shifted again
 extern bool GSPIShiftInProgress;                   // true if SPI shify is currently happening
 extern unsigned int GVf, GVr;                      // forward and reverse voltages
+extern float GVSWR;                                // calculated VSWR value
+extern unsigned int GForwardPower;                 // forward power (W)
 
 
 
@@ -49,7 +52,7 @@ void SetCapacitance(byte Value);            // capacitance 0-255
 void SetHiLoZ(bool Value);                  // true for high Z (relay=1)
 byte GetInductance(void);                   // inductance 0-255
 byte GetCapacitance(void);                  // capacitance 0-255
-bool GetHiLoZ(void);                        // true for low Z (relay=1)
+bool GetHiLoZ(void);                        // true for high Z (relay=1)
 
 //
 // set a null solution (essentially the same as "disable")
@@ -64,24 +67,33 @@ void SetNullSolution(void);
 //
 void DriveSolution(void);
 
-//
-// functions to get the current inductance and capacitance, in nH and pF
-//
-int GetCapacitanceValue(void);
-int GetInductanceValue(void);
 
 
-// 
-// function to return VSWR value
-// returns 100*VSWR; clipped to 65535
-//
-int GetVSWR(void);
 
 //
 // function to return mean and p-p excursion of Vf and Vr
+///
+// find peak power by searching buffer
+// returns a power peak value
+// 1st parameter true for forward power
+//
+unsigned int FindPeakPower(bool IsFwdPower);
+
+//
+// returns a power value
+// 1st parameter true for forward power
+//
+unsigned int GetPowerReading(bool IsFwdPower);
+
+
+//
 // used to get a display value for the Nextion display
 // 
 void GetADCMeanAndPeak(bool IsVF, unsigned int* Mean, unsigned int* Peak);
+
+
+
+
 
 
 #endif

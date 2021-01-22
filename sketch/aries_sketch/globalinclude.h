@@ -16,7 +16,7 @@
 //
 // hardware and software version: send back to console on request
 //
-#define SWVERSION 7
+#define SWVERSION 8
 #define HWVERSION 1
 #define PRODUCTID 2                 // Aries
 
@@ -29,20 +29,20 @@
 //
 // define this variable if UI with LCD is to be included
 //
-//#define CONDITIONAL_LCD_UI 1
+#define CONDITIONAL_LCD_UI 1
 
 
 
 //
 // define this variable if algorithm debug messages are to be printed
 //
-//#define CONDITIONAL_ALG_DEBUG 1
+#define CONDITIONAL_ALG_DEBUG 1
 
 
 //
 // define this variable if a simulated VSWR value is to be generated for algorithm testing
 //
-//#define CONDITIONAL_ALG_SIMVSWR 1
+#define CONDITIONAL_ALG_SIMVSWR 1
 
 
 
@@ -52,9 +52,14 @@
 //#define CONDITIONAL_STREAM_ADCREADINGS 1
 
 //
-// define this variable to always enable "quick tune" at the start of the algorithm
+// define for the display scale to use
+// 0: 100W max;
+// 1: 200W max;
+// 2: 500W max;
+// 3: 1000W max;
+// 4: 2000W max;
 //
-#define CONDITIONAL_ALWAYS_QUICKTUNE 1
+#define VDISPLAYSCALE 4
 
 
 

@@ -53,17 +53,18 @@ long DivisorTable[] =
 // (not including the final eNoCommand)
 // string, type, min value, max value, #digits, true if always signed
 //
-#define VNUMCATCMDS 9
+#define VNUMCATCMDS 10
 SCATCommands GCATCommands[VNUMCATCMDS] = 
 {
   {"ZZTU", eBool, 0, 1, 1, false},                        // TUNE on/off (from PC to Arduino)
-  {"ZZTV", eStr, 0, 0, 11, false},                        // TX frequency change (from PC to Arduino - treat as string)
+  {"ZZFT", eStr, 0, 0, 11, false},                        // TX frequency change (from PC to Arduino - treat as string)
   {"ZZOA", eNum, 0, 3, 1, false},                         // RX antenna change (from PC to Arduino)
   {"ZZOC", eNum, 0, 3, 1, false},                         // TX antenna change (from PC to Arduino)
   {"ZZOZ", eNum, 0, 3, 1, false},                         // erase tuning solutions (from PC to Arduino)
   {"ZZZE", eNum, 0, 999, 3, false},                       // other encoder for fine tune L/C
   {"ZZOX", eBool, 0, 1, 1, false},                        // Tune success (from Arduino to PC)
   {"ZZOV", eBool, 0, 1, 1, false},                        // ATU enable (from PC to Arduino)
+  {"ZZOY", eBool, 0, 1, 1, false},                        // ATU quick tune enable (from PC to Arduino)
   {"ZZZS", eNum, 0, 9999999, 7, false}                    // s/w version
 };
 
