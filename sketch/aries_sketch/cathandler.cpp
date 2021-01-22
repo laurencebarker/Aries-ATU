@@ -423,7 +423,7 @@ byte EEReadScale(void)
 {
   byte Result;
   Result = myEEPROM.read(VEEDISPLAYSCALELOC);
-  if((Result == 0) || (Result > VNUMSCALES))
+  if(Result > VNUMSCALES)
     Result = VNUMSCALES;
   return (byte)Result;
 }

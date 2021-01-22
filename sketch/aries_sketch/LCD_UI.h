@@ -23,7 +23,8 @@ enum EDisplayPage
   eCrossedNeedlePage,                       // crossed needle VSWR page display
   ePowerBargraphPage,                       // linear watts bargraph page display
   eMeterPage,                               // analogue power meter
-  eEngineeringPage                          // engineering page with raw ADC values
+  eEngineeringPage,                         // engineering page with raw ADC values
+  eSetupPage                                // setup page
 };
 
 

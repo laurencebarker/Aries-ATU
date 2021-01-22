@@ -36,13 +36,13 @@
 //
 // define this variable if algorithm debug messages are to be printed
 //
-#define CONDITIONAL_ALG_DEBUG 1
+//#define CONDITIONAL_ALG_DEBUG 1
 
 
 //
 // define this variable if a simulated VSWR value is to be generated for algorithm testing
 //
-#define CONDITIONAL_ALG_SIMVSWR 1
+//#define CONDITIONAL_ALG_SIMVSWR 1
 
 
 

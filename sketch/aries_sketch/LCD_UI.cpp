@@ -150,6 +150,17 @@ const unsigned int GCrossedNeedlePicture[VMAXSCALESETTING + 1] =
 };
 
 
+//
+// display scale strings for page 5
+//
+const char* GDisplayScaleStrings[VMAXSCALESETTING + 1] =
+{
+  "100W (R12,13 = 2K7)",
+  "200W (R12,13 = 4K7)",
+  "500W (R12,13 = 8K2)",
+  "1000W (R12,13 = 12K)",
+  "2000W (R12,13 = 18K)"
+};
 
 
 
@@ -167,6 +178,7 @@ NexPage page1 = NexPage(1, 0, "page1");       // creates touch event for "crosse
 NexPage page2 = NexPage(2, 0, "page2");       // creates touch event for "power bargraph" page
 NexPage page3 = NexPage(3, 0, "page3");       // creates touch event for "analogue meter" page
 NexPage page4 = NexPage(4, 0, "page4");       // creates touch event for "engineering" page
+NexPage page5 = NexPage(5, 0, "page5");       // creates touch event for "setup" page
 
 //
 // page 0 objects:
@@ -204,8 +216,6 @@ NexProgressBar p3VSWRBar = NexProgressBar(3, 2, "p3j0");          // VSWR bar
 NexButton p3EnableBtn = NexButton(3, 5, "p3b2");                  // Enable pushbutton
 NexText p3Status = NexText(3, 6, "p3t0");                         // ready/tuning etc
 
-
-
 //
 // page 4 objects:
 // 
@@ -229,6 +239,18 @@ NexText p4Quick = NexText(4, 28, "p4t11");                  // quick tune on/off
 NexButton p4EnableBtn = NexButton(4, 25, "p4b7");           // Enable pushbutton
 NexButton p4DisplayBtn = NexButton(4, 1, "p4b0");           // Setup page pushbutton
 NexButton p4SetupBtn = NexButton(4, 29, "p4b8");            // Setup pushbutton
+
+//
+// page 5 objects:
+// 
+NexText p5EraseTxt = NexText(5, 11, "p5t0");                // erase progress message
+NexText p5ScaleTxt = NexText(5, 2, "p5t1");                 // display scale string
+NexButton p5Ant1Btn = NexButton(5, 7, "p5b2");              // Ant 1 erase pushbutton
+NexButton p5Ant2Btn = NexButton(5, 8, "p5b3");              // Ant 2 erase pushbutton
+NexButton p5Ant3Btn = NexButton(5, 9, "p5b4");              // Ant 3 erase pushbutton
+NexButton p5Ant4Btn = NexButton(5, 10, "p5b5");             // Ant 4 erase pushbutton
+NexButton p5ScaleBtn = NexButton(5, 4, "p5b1");             // change display scale pushbutton
+NexButton p5RtnBtn = NexButton(5, 1, "p5b0");               // return display pushbutton
 
 
 //
@@ -255,6 +277,12 @@ NexTouch *nex_listen_list[] =
   &p4EnableBtn,                               // ATU enable/disable
   &p4DisplayBtn,                              // change display button
   &p4SetupBtn,                                // setup page button
+  &p5Ant1Btn,                                 // Antenna 1 erase
+  &p5Ant2Btn,                                 // Antenna 2 erase
+  &p5Ant3Btn,                                 // Antenna 3 erase
+  &p5Ant4Btn,                                 // Antenna 4 erase
+  &p5ScaleBtn,                                // Display scale button
+  &p5RtnBtn,                                  // Return display button
   NULL                                        // terminates the list
 };
 
@@ -605,7 +633,9 @@ void p4DisplayPushCallback(void *ptr)         // change display
 //
 void p4SetupPushCallback(void *ptr)         // change display to page 5
 {
-  
+    GDisplayPage = eSetupPage;
+    page5.show();
+    GInitialisePage = true;
 }
 
 
@@ -698,6 +728,67 @@ void p4HighZPushCallback(void *ptr)           // get new High/Low Z state
   SetHiLoZ(ZValue);            // set to h/w
 // display update is done in the display cycle round values section later
   DriveSolution();
+}
+
+//
+// touch event - page 5 Antenna 1
+//
+void p5Ant1PushCallback(void *ptr)         // erase antenna 1
+{
+  p5EraseTxt.setText("Erasing");
+  EEEraseSolutionSet(1);
+  p5EraseTxt.setText("Done");
+}
+
+//
+// touch event - page 5 Antenna 2
+//
+void p5Ant2PushCallback(void *ptr)         // erase antenna 2
+{
+  p5EraseTxt.setText("Erasing");
+  EEEraseSolutionSet(2);
+  p5EraseTxt.setText("Done");
+}
+
+//
+// touch event - page 5 Antenna 3
+//
+void p5Ant3PushCallback(void *ptr)         // erase antenna 3
+{
+  p5EraseTxt.setText("Erasing");
+  EEEraseSolutionSet(3);
+  p5EraseTxt.setText("Done");
+}
+
+//
+// touch event - page 5 Antenna 4
+//
+void p5Ant4PushCallback(void *ptr)         // erase antenna 4
+{
+  p5EraseTxt.setText("Erasing");
+  EEEraseSolutionSet(4);
+  p5EraseTxt.setText("Done");
+}
+
+//
+// touch event - page 5 display scale
+//
+void p5ScalePushCallback(void *ptr)         // set display scale
+{
+  if(++GDisplayScale > VMAXSCALESETTING)         // increment, save to eeprom then display
+    GDisplayScale = 0;
+  EEWriteScale(GDisplayScale);
+  p5ScaleTxt.setText(GDisplayScaleStrings[GDisplayScale]);
+}
+
+//
+// touch event - page 5 Return
+//
+void p5RtnPushCallback(void *ptr)           // change display
+{
+    GDisplayPage = eEngineeringPage;
+    page4.show();
+    GInitialisePage = true;
 }
 
 
@@ -861,6 +952,12 @@ void LCD_UI_Initialise(void)
   p4CPlusBtn.attachPush(p4CPlusPushCallback);
   p4FineBtn.attachPush(p4FinePushCallback);
   p4HighZBtn.attachPush(p4HighZPushCallback);
+  p5Ant1Btn.attachPush(p5Ant1PushCallback);
+  p5Ant2Btn.attachPush(p5Ant2PushCallback);
+  p5Ant3Btn.attachPush(p5Ant3PushCallback);
+  p5Ant4Btn.attachPush(p5Ant4PushCallback);
+  p5ScaleBtn.attachPush(p5ScalePushCallback);
+  p5RtnBtn.attachPush(p5RtnPushCallback);
 //
 // initialise display variables, then set all elements
 //  
@@ -1309,6 +1406,17 @@ void NextionDisplayTick(void)
           GDisplayItem = 0;
         else
           GDisplayItem++;
+      }
+      break;
+
+
+    case eSetupPage:
+      if(GInitialisePage)                       // initialise the controls not refreshed often
+      {
+        if(GDisplayScale > VMAXSCALESETTING)
+          GDisplayScale = VMAXSCALESETTING;
+        p5ScaleTxt.setText(GDisplayScaleStrings[GDisplayScale]);
+        GInitialisePage = false;
       }
       break;
   }

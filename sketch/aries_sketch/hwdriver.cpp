@@ -124,6 +124,7 @@ void SetADCScaleFactor(byte DisplayScale)
 {
   if(DisplayScale > 4)                                        // clip to just 5 display scales
     DisplayScale = 4;
+    
   GADCScaleFactor =  GADCScaleValues[DisplayScale];           // and lookup the value to use
 }
 
