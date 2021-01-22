@@ -77,6 +77,13 @@ void HandleCATCommandStringParam(ECATCommands MatchedCAT, char* ParsedParam);
 // eeprom/PC interface functions
 //
 //
+
+// EEEraseSolutionSet: erase an entire set of solutions for one antenna from EEPROM
+// this erases a significant block of EEPROM memory, and takes around 3 seconds.
+//
+void EEEraseSolutionSet(byte Antenna);
+
+//
 // function to write, read new LCD display page
 //
 void EEWritePage(byte Value);
@@ -86,14 +93,19 @@ byte EEReadPage();
 // function to write, read  new display average/peak mode
 //
 void EEWritePeak(bool Value);
-byte EEReadPeak();
+bool EEReadPeak();
 
 //
 // function to write, read new ATU enabled/disabled for standalone mode
 //
 void EEWriteEnabled(bool Value);
-byte EEReadEnabled();
+bool EEReadEnabled();
 
+//
+// function to write, read new ATU display scale for standalone mode
+//
+void EEWriteScale(byte Value);
+byte EEReadScale();
 //
 // write solution for current antenna and frequency to EEPROM
 // this is done before we declare TUNE complete

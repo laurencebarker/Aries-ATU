@@ -66,7 +66,7 @@ bool GCrossedNeedleRedrawing;                 // true if display is being redraw
 unsigned char GUpdateMeterTicks;              // number of ticks since a meter display updated
 
 
-
+bool GEncoderCapacitance;
 bool IsCoarse;
 bool GTuneChanged;              // true if a tune operation has happened and display to be updated
 byte GVoltDisplayCount;
@@ -88,8 +88,7 @@ bool GDisplayedZ;               // true if High Z
 int GDisplayedFreq;             // frequency displayed
 byte GDisplayScale;             // scale in use (0-4)
 NoClickEncoder Encoder1(VPINENCODER1B, VPINENCODER1A, VENCODERDIVISOR, true);
-NoClickEncoder Encoder2(VPINENCODER2B, VPINENCODER2A, VENCODERDIVISOR, true);
-PushbuttonDebounce EncoderBtnDebounce(VPINENCODER1PB, 64);          // toggle coarse/fine; longpress to toggle low/high Z
+PushbuttonDebounce EncoderBtnDebounce(VPINENCODER1PB, 64);          // toggle L/C; longpress to toggle coarse/fine
 
 //
 // display full scale values for power graphs
@@ -149,6 +148,11 @@ const unsigned int GCrossedNeedlePicture[VMAXSCALESETTING + 1] =
   11,             // 1kW display
   7               // 2kW display
 };
+
+
+
+
+
 
 
 //
@@ -223,7 +227,8 @@ NexText p4Status = NexText(4, 27, "p4t0");                  // ready/tuning etc
 NexText p4PTT = NexText(4, 26, "p4t9");                     // PTT on/off
 NexText p4Quick = NexText(4, 28, "p4t11");                  // quick tune on/off
 NexButton p4EnableBtn = NexButton(4, 25, "p4b7");           // Enable pushbutton
-NexButton p4DisplayBtn = NexButton(4, 1, "p4b0");           // Display pushbutton
+NexButton p4DisplayBtn = NexButton(4, 1, "p4b0");           // Setup page pushbutton
+NexButton p4SetupBtn = NexButton(4, 29, "p4b8");            // Setup pushbutton
 
 
 //
@@ -249,6 +254,7 @@ NexTouch *nex_listen_list[] =
   &p4HighZBtn,                                // Low/High Z button
   &p4EnableBtn,                               // ATU enable/disable
   &p4DisplayBtn,                              // change display button
+  &p4SetupBtn,                                // setup page button
   NULL                                        // terminates the list
 };
 
@@ -470,6 +476,7 @@ void p1PeakPushCallback(void *ptr)           // change peak/average display
 {
   GIsPeakDisplay = !GIsPeakDisplay;
   SetPeakButtonText();
+  EEWritePeak(GIsPeakDisplay);
 }
 
 //
@@ -479,6 +486,7 @@ void p1EnabledPushCallback(void *ptr)         // enable/disable ATU
 {
   SetATUOnOff(!GATUEnabled);
   SetEnabledButtonText();
+  EEWriteEnabled(GATUEnabled);
 }
 
 //
@@ -501,6 +509,7 @@ void p2PeakPushCallback(void *ptr)           // change peak/average display
 {
   GIsPeakDisplay = !GIsPeakDisplay;
   SetPeakButtonText();
+  EEWritePeak(GIsPeakDisplay);
 }
 
 //
@@ -510,6 +519,7 @@ void p2EnabledPushCallback(void *ptr)         // enable/disable ATU
 {
   SetATUOnOff(!GATUEnabled);
   SetEnabledButtonText();
+  EEWriteEnabled(GATUEnabled);
 }
 
 //
@@ -535,6 +545,7 @@ void p3PeakPushCallback(void *ptr)           // change peak/average display
 {
   GIsPeakDisplay = !GIsPeakDisplay;
   SetPeakButtonText();
+  EEWritePeak(GIsPeakDisplay);
 }
 
 //
@@ -544,6 +555,7 @@ void p3EnabledPushCallback(void *ptr)         // enable/disable ATU
 {
   SetATUOnOff(!GATUEnabled);
   SetEnabledButtonText();
+  EEWriteEnabled(GATUEnabled);
 }
 
 //
@@ -569,6 +581,7 @@ void p4EnabledPushCallback(void *ptr)         // enable/disable ATU
 {
   SetATUOnOff(!GATUEnabled);                  // change state for hardware
   SetEnabledButtonText();
+  EEWriteEnabled(GATUEnabled);
 }
 
 
@@ -585,6 +598,16 @@ void p4DisplayPushCallback(void *ptr)         // change display
     GInitialisePage = true;
   }
 }
+
+
+//
+// touch event - page 4 Setup
+//
+void p4SetupPushCallback(void *ptr)         // change display to page 5
+{
+  
+}
+
 
 
 //
@@ -814,7 +837,9 @@ void LCD_UI_Initialise(void)
 {
   char Str[10];
 
-  GDisplayScale = VDISPLAYSCALE;                              // get display scale to use (compile time)
+  GDisplayScale = EEReadScale();                              // get display scale to use
+  SetADCScaleFactor(GDisplayScale);
+  
   IsCoarse = true;
   GDisplayItem = 0;
   nexInit(115200);
@@ -829,6 +854,7 @@ void LCD_UI_Initialise(void)
   p3DisplayBtn.attachPush(p3DisplayPushCallback);
   p4EnableBtn.attachPush(p4EnabledPushCallback);
   p4DisplayBtn.attachPush(p4DisplayPushCallback);
+  p4SetupBtn.attachPush(p4SetupPushCallback);
   p4LMinusBtn.attachPush(p4LMinusPushCallback);
   p4LPlusBtn.attachPush(p4LPlusPushCallback);
   p4CMinusBtn.attachPush(p4CMinusPushCallback);
@@ -924,11 +950,7 @@ void SetStatusString(void)
 //
 void LCD_UI_EncoderTick(bool OddEncoder)
 {
-
-  if(OddEncoder)
     Encoder1.service();     // update encoder states
-  else
-    Encoder2.service();
 }
 
 
@@ -1303,32 +1325,33 @@ void LCD_UI_Tick(void)
   bool ZValue;                                            // current hi/low Z value
   int LValue, CValue;                                     // current inductance and capacitance
   EButtonEvent EncoderPressEvent;
-  signed char LMovement, CMovement;
+  signed char LMovement=0, CMovement=0;
   int NewInductance, NewCapacitance;
 //
 // update pushbutton
 //
   EncoderPressEvent = EncoderBtnDebounce.Tick();
-  
-  LMovement = Encoder1.getValue();
-  CMovement = Encoder2.getValue();
 
+//
+// update manual tune of inductance/capacitance
+//
+  if(GEncoderCapacitance)
+    CMovement = Encoder1.getValue();
+  else
+    LMovement = Encoder1.getValue();
 
 //
 // update pushbutton events
 //
-  if (EncoderPressEvent == ePressed)                    // normal press toggles "coarse"
+  if (EncoderPressEvent == eLongPressed)                    // normal press toggles "coarse"
   {
     IsCoarse = !IsCoarse;
     SetCoarseButtonText();
   }
 
-  if (EncoderPressEvent == eLongPressed)                // encoder longpress toggles "hi/low Z"
+  if (EncoderPressEvent == ePressed)                // encoder longpress toggles "hi/low Z"
   {
-    ZValue = !GetHiLoZ();
-    SetHiLoZ(ZValue);            // set to h/w
-// display update is done in the display cycle round values section later
-    DriveSolution();
+    GEncoderCapacitance = !GEncoderCapacitance;
   }
 
 

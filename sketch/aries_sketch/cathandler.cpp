@@ -24,6 +24,16 @@
 #include "algorithm.h"
 
 
+#define VEEDISPLAYPAGELOC 0x1FFF0L
+#define VEEPEAKLOC 0x1FFF1L
+#define VEEENABLEDLOC 0x1FFF2L
+#define VEEDISPLAYSCALELOC 0x1FFF3L
+#define VNUMSCALES 4                    // number of display scales
+#define VNUMPAGES 4                     // number of usable display pages
+
+
+
+
 //
 // global variables
 //
@@ -208,7 +218,8 @@ void MakeSoftwareVersionMessage(void)
 //
 void MakeTuneSuccessMessage(bool Result)
 {
-  MakeCATMessageBool(eZZOX,Result);
+  if(GATUEnabled)
+    MakeCATMessageBool(eZZOX,Result);
   GValidSolution = Result;
 }
 
@@ -334,9 +345,6 @@ void SetTuneResult(bool Successful, byte Inductance, byte Capacitance, bool IsHi
 }
 
 
-#define VEEDISPLAYPAGELOC 0x1FFF0L
-#define VEEPEAKLOC 0x1FFF0L
-#define VEEENABLEDLOC 0x1FFF0L
 
 //
 // function to write new LCD display page
@@ -349,12 +357,12 @@ void EEWritePage(byte Value)
 //
 // function to read new LCD display page
 //
-byte EEReadPage()
+byte EEReadPage(void)
 {
-  int Result;
+  byte Result;
   Result = myEEPROM.read(VEEDISPLAYPAGELOC);
-  if((Result == 0) || (Result > 4))
-    Result = 4;
+  if((Result == 0) || (Result > VNUMPAGES))
+    Result = VNUMPAGES;
   return (byte)Result;
 }
 
@@ -373,9 +381,9 @@ void EEWritePeak(bool Value)
 //
 // function to read new display average/peak mode
 //
-byte EEReadPeak()
+bool EEReadPeak(void)
 {
-  int Result;
+  byte Result;
   Result = myEEPROM.read(VEEPEAKLOC);
   return (bool)Result;
 }
@@ -395,12 +403,32 @@ void EEWriteEnabled(bool Value)
 //
 // function to read new ATU enbled/disabled for standalone mode
 //
-byte EEReadEnabled()
+bool EEReadEnabled(void)
 {
-  int Result;
+  byte Result;
   Result = myEEPROM.read(VEEENABLEDLOC);
   return (bool)Result;
 }
+
+//
+// function to write, read new ATU display scale for standalone mode
+//
+void EEWriteScale(byte Value)
+{
+  myEEPROM.write(VEEDISPLAYSCALELOC, Value);
+}
+
+
+byte EEReadScale(void)
+{
+  byte Result;
+  Result = myEEPROM.read(VEEDISPLAYSCALELOC);
+  if((Result == 0) || (Result > VNUMSCALES))
+    Result = VNUMSCALES;
+  return (byte)Result;
+}
+
+
 
 ///////////////////////////////// process CAT commands ///////////////////////
 
@@ -443,17 +471,21 @@ void SetupForNewFrequency(void)
     }
   }
     // if we have a solution, set it and send success; else set bypass
-  if(SolutionFound)
+    //(only if enabled!)
+  if(GATUEnabled)
   {
-    if(Solution1 & 0b10000000)
-      IsHighZ = true;
-    SetInductance(Solution2);             // inductance 0-255
-    SetCapacitance(Solution3);            // capacitance 0-255
-    SetHiLoZ(IsHighZ);                    // true for low Z (relay=1)
+    if(SolutionFound)
+    {
+      if(Solution1 & 0b10000000)
+        IsHighZ = true;
+      SetInductance(Solution2);             // inductance 0-255
+      SetCapacitance(Solution3);            // capacitance 0-255
+      SetHiLoZ(IsHighZ);                    // true for low Z (relay=1)
+    }
+    else
+      SetNullSolution();
+    MakeTuneSuccessMessage(SolutionFound);
   }
-  else
-    SetNullSolution();
-  MakeTuneSuccessMessage(SolutionFound);
 }
 
 

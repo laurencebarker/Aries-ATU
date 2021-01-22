@@ -183,8 +183,8 @@ void ConfigIOPins(void)
   pinMode(VPINENCODER1A, INPUT_PULLUP);                 // normal encoder
   pinMode(VPINENCODER1B, INPUT_PULLUP);                 // normal encoder
 
-  pinMode(VPINENCODER2A, INPUT_PULLUP);                 // normal encoder
-  pinMode(VPINENCODER2B, INPUT_PULLUP);                 // normal encoder
+// pinMode(VPINENCODER2A, INPUT_PULLUP);                 // normal encoder
+// pinMode(VPINENCODER2B, INPUT_PULLUP);                 // normal encoder
 
   pinMode(VPINTR_PTTOUT, OUTPUT);
   pinMode(VPINENCODER1PB, INPUT_PULLUP);                // normal pushbutton

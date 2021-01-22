@@ -36,8 +36,7 @@ bool GResendSPI;                            // true if SPI data must be shifted 
 bool GSPIShiftInProgress;                   // true if SPI shify is currently happening
 
 #define VVSWR_HIGH 100.0F                   // to avoid divide by zero
-//#define VLINEVOLTSCALE 0.02057F             // convert ADC reading to volts (3.3V VCC, 12 bit ADC)
-#define VLINEVOLTSCALE 0.2057F             // convert ADC reading to volts (3.3V VCC, 12 bit ADC) TEMP FOR TEST
+float GADCScaleFactor;                        // ADC scaling factor (scales ADC reading to RMS line volts)
 
 unsigned int GVf, GVr;                      // forward and reverse voltages (raw ADC measurements)
 
@@ -46,6 +45,25 @@ unsigned int GVf, GVr;                      // forward and reverse voltages (raw
 unsigned int GVFArray[VNUMADCAVG];          // circular buffer of Vf values
 unsigned int GVRArray[VNUMADCAVG];          // circular buffer of Vr values
 unsigned int GCircBufferPtr;                // current position to write to
+
+
+//
+// scale factors from ADC reading to RMS line volts
+// theses assume VSWR bridge has 14 turns
+// one per display scale; resistor changes needed for each in h/w
+// there is a spreadsheet in documentation folder to calculate!
+//
+const float GADCScaleValues[] = 
+{
+  0.019939,                                 // 100W: R12, R13=2K7
+  0.028801,                                 // 200W: R12, R13=4K7
+  0.044309,                                 // 500W: R12, R13=8K2
+  0.061147,                                 // 1000W: R12, R13=12K
+  0.087732                                  // 2000W: R12, R13=18K
+};
+
+
+
 
 
 //
@@ -97,6 +115,17 @@ void InitialiseHardwareDrivers(void)
     GStandaloneMode = true;
 }
 
+
+
+//
+// function to set the ADC power scaling value depending on the display scale in use
+//
+void SetADCScaleFactor(byte DisplayScale)
+{
+  if(DisplayScale > 4)                                        // clip to just 5 display scales
+    DisplayScale = 4;
+  GADCScaleFactor =  GADCScaleValues[DisplayScale];           // and lookup the value to use
+}
 
 
 
@@ -217,8 +246,8 @@ void HWDriverTick(void)
 //
 // convert the raw measurements to "normal" units
 //
-  VFwd = (float)FwdVoltReading * VLINEVOLTSCALE;    // forward line RMS voltage
-  VRev = (float)RevVoltReading * VLINEVOLTSCALE;    // reverse line RMS voltage
+  VFwd = (float)FwdVoltReading * GADCScaleFactor;    // forward line RMS voltage
+  VRev = (float)RevVoltReading * GADCScaleFactor;    // reverse line RMS voltage
 
 #ifdef CONDITIONAL_STREAM_ADCREADINGS
   if (FwdVoltReading > 0)
@@ -236,9 +265,9 @@ void HWDriverTick(void)
 //
 // finally calculate VSWR
 // GVSWR stored as float
-// below 5W, just report 1
+// below 1W, just report 1
 //
-  if (GForwardPower < 5)
+  if (Unit < 1.0)
     GVSWR = 1.0;
   else if (VFwd > VRev)
     GVSWR = (VFwd+VRev) / (VFwd - VRev);                 // VSWR
@@ -362,7 +391,7 @@ unsigned int FindPeakPower(bool IsFwdPower)
     Reading = *Ptr++;
     Largest = max(Largest, Reading);
   }
-  Volts = (float)Largest * VLINEVOLTSCALE;              // forward line RMS voltage
+  Volts = (float)Largest * GADCScaleFactor;              // forward line RMS voltage
   Power = Volts * Volts/50;                             // calculate power in 50 ohm line
   return (unsigned int)Power;
 }
@@ -395,7 +424,7 @@ unsigned int GetPowerReading(bool IsFwdPower)
     Total += Reading;
   }
   Total = Total/VNUMADCAVG;                   // mean value
-  Volts = (float)Total * VLINEVOLTSCALE;    // forward line RMS voltage
+  Volts = (float)Total * GADCScaleFactor;    // forward line RMS voltage
   
   Power = Volts * Volts/50;                            // calculate power in 50 ohm line
   return (unsigned int)Power;

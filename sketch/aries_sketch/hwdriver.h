@@ -92,7 +92,10 @@ unsigned int GetPowerReading(bool IsFwdPower);
 void GetADCMeanAndPeak(bool IsVF, unsigned int* Mean, unsigned int* Peak);
 
 
-
+//
+// function to set the ADC power scaling value depending on the display scale in use
+//
+void SetADCScaleFactor(byte DisplayScale);
 
 
 
