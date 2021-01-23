@@ -28,6 +28,7 @@
 #define VEEPEAKLOC 0x1FFF1L
 #define VEEENABLEDLOC 0x1FFF2L
 #define VEEDISPLAYSCALELOC 0x1FFF3L
+#define VEEALLOWQUICKLOC 0x1FFF4L
 #define VNUMSCALES 4                    // number of display scales
 #define VNUMPAGES 4                     // number of usable display pages
 
@@ -174,7 +175,10 @@ void InitCATHandler(void)
 // initialise algorithm operation: select whether quick tune always allowed
 
   if (GStandaloneMode)                        // for standalone mode, load "enabled" state from EEPROM
+  {
     GATUEnabled = EEReadEnabled();
+    GQuickTuneEnabled = EEReadQuick();
+  }
 }
 
 
@@ -428,6 +432,23 @@ byte EEReadScale(void)
   return (byte)Result;
 }
 
+//
+// function to write, read new ATU quick tune enabled/disabled for standalone mode
+//
+void EEWriteQuick(bool Value)
+{
+  byte Data;
+  Data = (byte)Value;
+  myEEPROM.write(VEEALLOWQUICKLOC, Data);
+}
+
+bool EEReadQuick()
+{
+  byte Result;
+  Result = myEEPROM.read(VEEALLOWQUICKLOC);
+  return (bool)Result;
+}
+
 
 
 ///////////////////////////////// process CAT commands ///////////////////////
@@ -541,9 +562,7 @@ void SetATUOnOff(bool State)
     DriveSolution();                            // disable straightaway
   }
 
-#ifdef CONDITIONAL_LCD_UI
   ShowATUEnabled(State);                        // debug
-#endif
 }
 
 
@@ -582,9 +601,7 @@ void SetNewFrequency(char* FreqString)
     else
       SetupForNewFrequency();
   }
-#ifdef CONDITIONAL_LCD_UI
   ShowFrequency(FreqString);
-#endif
 }
 
 
@@ -618,9 +635,7 @@ void HandleTXAntennaChange(int Antenna)
     }
     
   }
-#ifdef CONDITIONAL_LCD_UI
     ShowAntenna(Antenna);
-#endif
 }
 
 
@@ -786,8 +801,8 @@ void HWTuneISR(void)
 #endif
 
     GPCTuneActive = true;
-    if(GPTTPressed)
-      InitiateTune(true);
+    if(GPTTPressed && GATUEnabled)
+      InitiateTune(GQuickTuneEnabled);
   }
 }
 

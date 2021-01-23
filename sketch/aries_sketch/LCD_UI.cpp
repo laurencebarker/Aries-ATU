@@ -21,7 +21,6 @@
 #include "cathandler.h"
 #include <Arduino.h>
 
-#ifdef CONDITIONAL_LCD_UI
 #include <Nextion.h>
 
 
@@ -251,6 +250,7 @@ NexButton p5Ant3Btn = NexButton(5, 9, "p5b4");              // Ant 3 erase pushb
 NexButton p5Ant4Btn = NexButton(5, 10, "p5b5");             // Ant 4 erase pushbutton
 NexButton p5ScaleBtn = NexButton(5, 4, "p5b1");             // change display scale pushbutton
 NexButton p5RtnBtn = NexButton(5, 1, "p5b0");               // return display pushbutton
+NexButton p5AlgBtn = NexButton(5, 12, "p5b6");               // algorithm "quick" pushbutton
 
 
 //
@@ -283,6 +283,7 @@ NexTouch *nex_listen_list[] =
   &p5Ant4Btn,                                 // Antenna 4 erase
   &p5ScaleBtn,                                // Display scale button
   &p5RtnBtn,                                  // Return display button
+  &p5AlgBtn,                                  // algorithm "quick" button
   NULL                                        // terminates the list
 };
 
@@ -791,6 +792,19 @@ void p5RtnPushCallback(void *ptr)           // change display
     GInitialisePage = true;
 }
 
+//
+// touch event - page 5 Algorithm quick/not quick
+//
+void p5AlgPushCallback(void *ptr)           // change algorithm setting
+{
+  GQuickTuneEnabled = !GQuickTuneEnabled;
+  EEWriteQuick(GQuickTuneEnabled);
+  if(GQuickTuneEnabled)
+    p5AlgBtn.setText("Quick");
+  else
+    p5AlgBtn.setText("Full");
+}
+
 
 // end of event handlers for button presses
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -958,6 +972,7 @@ void LCD_UI_Initialise(void)
   p5Ant4Btn.attachPush(p5Ant4PushCallback);
   p5ScaleBtn.attachPush(p5ScalePushCallback);
   p5RtnBtn.attachPush(p5RtnPushCallback);
+  p5AlgBtn.attachPush(p5AlgPushCallback);
 //
 // initialise display variables, then set all elements
 //  
@@ -995,28 +1010,15 @@ void SetTuneChanged()
 void SetStatusString(void)
 {
   char StatusString[20];                       // ATU status string
-  unsigned long Colour;
   
   if(!GATUEnabled)
-  {
     strcpy(StatusString, "Disabled");
-    Colour = NEXBLACK;
-  }
   else if (GTuneActive)
-  {
     strcpy(StatusString, "Tuning");
-    Colour = NEXRED;
-  }
   else if (GValidSolution)
-  {
     strcpy(StatusString, "ATU Tuned");
-    Colour = NEXBLUE;
-  }
   else
-  {
     strcpy(StatusString, "No Tune");
-    Colour = NEXBLACK;
-  }
 
   switch(GDisplayPage)
   {
@@ -1024,19 +1026,15 @@ void SetStatusString(void)
       break;
     case eCrossedNeedlePage:                       // crossed needle VSWR page display
       p1Status.setText(StatusString);
-//      p1Status.Set_font_color_pco(Colour);
       break;
     case ePowerBargraphPage:                       // linear watts bargraph page display
       p2Status.setText(StatusString);
-//      p2Status.Set_font_color_pco(Colour);
       break;
     case eMeterPage:                               // analogue power meter
       p3Status.setText(StatusString);
-//      p3Status.Set_font_color_pco(Colour);
       break;
     case eEngineeringPage:                          // engineering page with raw ADC values
       p4Status.setText(StatusString);
-//      p4Status.Set_font_color_pco(Colour);
       break;
   }
 }
@@ -1416,6 +1414,10 @@ void NextionDisplayTick(void)
         if(GDisplayScale > VMAXSCALESETTING)
           GDisplayScale = VMAXSCALESETTING;
         p5ScaleTxt.setText(GDisplayScaleStrings[GDisplayScale]);
+        if(GQuickTuneEnabled)
+          p5AlgBtn.setText("Quick");
+        else
+          p5AlgBtn.setText("Full");
         GInitialisePage = false;
       }
       break;
@@ -1525,6 +1527,3 @@ void ShowATUEnabled(bool IsEnabled)
   SetStatusString();
   SetEnabledButtonText();
 }
-
-
-#endif

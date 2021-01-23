@@ -27,13 +27,6 @@
 
 
 //
-// define this variable if UI with LCD is to be included
-//
-#define CONDITIONAL_LCD_UI 1
-
-
-
-//
 // define this variable if algorithm debug messages are to be printed
 //
 //#define CONDITIONAL_ALG_DEBUG 1

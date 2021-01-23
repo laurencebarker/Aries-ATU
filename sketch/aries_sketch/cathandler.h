@@ -102,6 +102,12 @@ void EEWriteEnabled(bool Value);
 bool EEReadEnabled();
 
 //
+// function to write, read new ATU quick tune enabled/disabled for standalone mode
+//
+void EEWriteQuick(bool Value);
+bool EEReadQuick();
+
+//
 // function to write, read new ATU display scale for standalone mode
 //
 void EEWriteScale(byte Value);

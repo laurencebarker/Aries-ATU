@@ -81,9 +81,7 @@ void setup()
 //
 // initialise UI
 //
-#ifdef CONDITIONAL_LCD_UI
   LCD_UI_Initialise();
-#endif
 }
 
 
@@ -98,9 +96,7 @@ void TickHandler(void)
   if(GTickCounter &1)
     IsOdd = true;
 
-#ifdef CONDITIONAL_LCD_UI
   LCD_UI_EncoderTick(IsOdd);
-#endif
 
 //
 // now count ticks to 16ms tick
@@ -163,11 +159,9 @@ else
   CatHandlerTick();
     
 //
-// UI tick, if conditionally included
+// UI tick
 //
-#ifdef CONDITIONAL_LCD_UI
     LCD_UI_Tick();
-#endif
   }
 }
 
@@ -205,6 +199,6 @@ void ConfigIOPins(void)
 // PTT interrupt needs to catch both edges so we can send SPI data for T/R relay and RX/TX antenna
   attachInterrupt(VPINPTT, PttISR, FALLING);
   
-// h/w tune interrupt needs to catch falling edge to initiate a tune request. (temp disconnected)
+// h/w tune interrupt needs to catch falling edge to initiate a tune request.
   attachInterrupt(VPINHWTUNECMD, HWTuneISR, FALLING);
 }
