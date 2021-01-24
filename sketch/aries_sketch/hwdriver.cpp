@@ -211,10 +211,11 @@ bool GetHiLoZ(void)                         // true for low Z (relay=1)
 
 //
 // set a null solution (essentially the same as "disable")
+// with rev 4 hardware a tiny inductance gave best VSWR across the whole HF band
 //
 void SetNullSolution(void)
 {
-  StoredLValue = 0;
+  StoredLValue = 1;
   StoredCValue = 0;
   StoredHiLoZ = false;
 }

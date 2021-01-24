@@ -945,7 +945,6 @@ void LCD_UI_Initialise(void)
   GDisplayScale = EEReadScale();                              // get display scale to use
   SetADCScaleFactor(GDisplayScale);
   
-  IsCoarse = true;
   GDisplayItem = 0;
   nexInit(115200);
   p1PeakBtn.attachPush(p1PeakPushCallback);
@@ -1495,7 +1494,9 @@ void LCD_UI_Tick(void)
 //
 // now update the display
 //
+#ifdef CONDITIONAL_UI_DISPLAY
   NextionDisplayTick();
+#endif
 }
 
 

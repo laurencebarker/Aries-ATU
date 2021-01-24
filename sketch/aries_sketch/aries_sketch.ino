@@ -43,10 +43,12 @@ void setup()
 {
   // put your setup code here, to run once:
   Serial.begin(9600);               // PC communication
-  while (!Serial)                   // wait for it to be ready 
-  {
-    ;
-  }
+//
+// removed the "wait for serial before starting"
+//  while (!Serial)                   // wait for it to be ready 
+//  {
+//    ;
+//  }
 
   Wire.begin();                       // I2C
   Wire.setClock(100000);              // slow to 100KHz for LCD
