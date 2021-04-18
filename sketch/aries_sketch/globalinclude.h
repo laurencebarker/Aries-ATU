@@ -16,14 +16,28 @@
 //
 // hardware and software version: send back to console on request
 //
-#define SWVERSION 8
+#define SWVERSION 9
 #define HWVERSION 1
 #define PRODUCTID 2                 // Aries
 
+
+//
+// define for PCB hardware version. Define this variable if h/w is REV5 or above
+//
+#define HWREV5 1
+
+
+//
+// define for Amplifier protection. Define this variable is amplifier protection to be included.
+//
+#define AMPLIFIERPROTECTION 1
+
+
 //
 // define this variable if if the VSWR bridge uses the binocular core ferrite
-//
-#define VSWR_SWAPVFVR 1
+// typically this is defined with binocular core VSWR bridges on h/w rev 3 and below
+// rev 5 h/w does NOT need this defined
+//#define VSWR_SWAPVFVR 1
 
 
 //
@@ -58,7 +72,8 @@
 // 3: 1000W max;
 // 4: 2000W max;
 //
-#define VDISPLAYSCALE 4
+#define VDISPLAYSCALE 4                 // number - 1 of display scales available 
+#define VNUMPAGES 4                     // number of usable display pages (not counting setup or splash)
 
 
 

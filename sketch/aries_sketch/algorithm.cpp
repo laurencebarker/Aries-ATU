@@ -21,7 +21,8 @@
 #define VSUCCESSVSWR 150                  // threshold for "successful" tune VSWR = 1.5
 #define VSUCCESSQUICKVSWR 120             // threshold for "successful" quick tune VSWR = 1.2
 #define VMAXVSWR 65535
-
+#define VALGTICKSPERSTEP 2                // executes once per 3 ticks
+#define VALGSTARTDELAYTICKS 20            // delay after PTT before algorithm starts properly, to allow power to ramp up
 
 
 //
@@ -209,6 +210,9 @@ const SSweepSet GStage1Array[] =
 //
 // global variables
 //
+int GAlgTickCount;              // counts ticks to see when to execute algorithm
+bool GQuickTuneEnabled;         // true if quick tune allowed
+
 byte GFreqMHz;                  // frequency in MHz
 EAlgorithmState GAlgState;      // sequencer state variable
 bool GIsQuickTune;              // true if we are trying a quick tune
@@ -231,7 +235,14 @@ SSweepSet GCurrentSweep;        // paramters for current sweep
 //
 #define VDEBTEXTSIZE 80
 char DebugText[VDEBTEXTSIZE];
-int DebugCounter;
+
+
+//
+// forward reference to function later in file
+//
+void InitiateTune(bool StartQuick);
+
+
 
 //
 // function to initialise algorithm code
@@ -562,147 +573,152 @@ void AlgorithmTick(void)
   char Str[10];
 
 //
+// only execute algorithm code every few ticks
+// when algorithm starts, reset this to max!
+//
+  if(GPCTuneActive && GPTTPressed)
+    InitiateTune(GQuickTuneEnabled);
+  else if (--GAlgTickCount <= 0)
+  {
+    GAlgTickCount = VALGTICKSPERSTEP;
+
+//
 // see if terminated mid-tune by the PC
 //
-  if((GTuneActive == false) && (GAlgState != eAlgIdle))
-  {
-    GAlgState = eAlgIdle;
-  }
+    if((GTuneActive == false) && (GAlgState != eAlgIdle))
+    {
+      GAlgState = eAlgIdle;
+    }
   
 //
 // if executing algorithm, get VSWR and store if better than last
 // then try advance to new step
 //
-  if ((GAlgState != eAlgIdle) && (GAlgState != eAlgEEPROMWrite))
-  {
-    GCurrentSetting.VSWR = GetVSWR();
-    if (GCurrentSetting.VSWR < GBestFoundSoFar.VSWR)
+    if ((GAlgState != eAlgIdle) && (GAlgState != eAlgEEPROMWrite))
     {
-      GBestFoundSoFar = GCurrentSetting;
-      GBestFoundSoFar.IsSweepingL = GCurrentSweep.IsSweepingL;
-    }
-#ifdef CONDITIONAL_ALG_DEBUG
-    strcpy(DebugText, StateNames[(byte)GAlgState]);
-    if(GAlgState == eAlgCoarse1)
-    {
-      mysprintf(Str, GStage1Row, false);
-      strcat(DebugText, Str);
-      strcat(DebugText, ": ");
-    }
-    PrintSolution(true);                // print current step and its VSWR
-#endif
-//
-// now work out proposed next step (if state changes, this may be overridden)
-//
-    ValidNewStep = FindNextStep();
-  }
-
-//
-// now see what the sequencer tells us to do next!
-// in most cases, nothing more if ValidNewStep == true
-//
-  switch(GAlgState)
-  {
-    case eAlgIdle:                                    // do nothing in idle!
-      break;
-
-    case eAlgCoarse1: 
-//      if(--DebugCounter <= 0)
-//      {
-//        Serial.println("finished");
-//        GTuneActive = false;
-//        GAlgState = eAlgIdle;
-//      }
-      if(!ValidNewStep)                               // if we have exhausted current search, try new row
+      GCurrentSetting.VSWR = GetVSWR();
+      if (GCurrentSetting.VSWR < GBestFoundSoFar.VSWR)
       {
-        ValidNewRow = GetStage1Row(false);            // try move to next row. 
-        if(!ValidNewRow)                              // if this fails, change state
+        GBestFoundSoFar = GCurrentSetting;
+        GBestFoundSoFar.IsSweepingL = GCurrentSweep.IsSweepingL;
+      }
+  #ifdef CONDITIONAL_ALG_DEBUG
+      strcpy(DebugText, StateNames[(byte)GAlgState]);
+      if(GAlgState == eAlgCoarse1)
+      {
+        mysprintf(Str, GStage1Row, false);
+        strcat(DebugText, Str);
+        strcat(DebugText, ": ");
+      }
+      PrintSolution(true);                // print current step and its VSWR
+  #endif
+  //
+  // now work out proposed next step (if state changes, this may be overridden)
+  //
+      ValidNewStep = FindNextStep();
+    }
+  
+  //
+  // now see what the sequencer tells us to do next!
+  // in most cases, nothing more if ValidNewStep == true
+  //
+    switch(GAlgState)
+    {
+      case eAlgIdle:                                    // do nothing in idle!
+        break;
+  
+      case eAlgCoarse1: 
+        if(!ValidNewStep)                               // if we have exhausted current search, try new row
         {
-          // we need to construct a sweep set for stage 1b
-          GAlgState = eAlgCoarse2;
-          GCurrentSweep.IsHighZ = GBestFoundSoFar.HighZ;                  // copy best Z setting
-          GCurrentSweep.IsSweepingL = !GBestFoundSoFar.IsSweepingL;       // opposite sweep needed now
-          GCurrentSweep.StepSize = GTuneParamArray[GFreqRow].Stage1bStep;
-          if(GCurrentSweep.IsSweepingL)
+          ValidNewRow = GetStage1Row(false);            // try move to next row. 
+          if(!ValidNewRow)                              // if this fails, change state
           {
-            GCurrentSweep.MinSteppedValue = 0;                            // stage 1b will start at 0
-            GCurrentSweep.MaxSteppedValue = GTuneParamArray[GFreqRow].LMax;
-            GCurrentSweep.FixedParam = GBestFoundSoFar.CValue;            // if we now sweep L, copy C value from best so far
+            // we need to construct a sweep set for stage 1b
+            GAlgState = eAlgCoarse2;
+            GCurrentSweep.IsHighZ = GBestFoundSoFar.HighZ;                  // copy best Z setting
+            GCurrentSweep.IsSweepingL = !GBestFoundSoFar.IsSweepingL;       // opposite sweep needed now
+            GCurrentSweep.StepSize = GTuneParamArray[GFreqRow].Stage1bStep;
+            if(GCurrentSweep.IsSweepingL)
+            {
+              GCurrentSweep.MinSteppedValue = 0;                            // stage 1b will start at 0
+              GCurrentSweep.MaxSteppedValue = GTuneParamArray[GFreqRow].LMax;
+              GCurrentSweep.FixedParam = GBestFoundSoFar.CValue;            // if we now sweep L, copy C value from best so far
+            }
+            else
+            {
+              GCurrentSweep.MinSteppedValue = 0;                            // stage 1b will start at 0
+              GCurrentSweep.MaxSteppedValue = GTuneParamArray[GFreqRow].CMax;
+              GCurrentSweep.FixedParam = GBestFoundSoFar.LValue;            // if we now sweep C, copy L value from best so far
+            }
+            InitialiseCurrentFromSweep();                                   // will be sent to h/w at the end
           }
-          else
-          {
-            GCurrentSweep.MinSteppedValue = 0;                            // stage 1b will start at 0
-            GCurrentSweep.MaxSteppedValue = GTuneParamArray[GFreqRow].CMax;
-            GCurrentSweep.FixedParam = GBestFoundSoFar.LValue;            // if we now sweep C, copy L value from best so far
-          }
-          InitialiseCurrentFromSweep();                                   // will be sent to h/w at the end
         }
-      }
-      break;
-
-    case eAlgCoarse2:
-      if(!ValidNewStep)                                                   // take best found and set up mid sweep
-      {
-        // we need to construct a sweep set for stage 2 1st mid sweep; keep the Z setting
-        GAlgState = eAlgMid1;
-        GCurrentSweep.IsSweepingL = !GCurrentSweep.IsSweepingL;           // opposite sweep needed now
-        GCurrentSweep.StepSize = GTuneParamArray[GFreqRow].Stage2MidStep;
-        SweepRange = GTuneParamArray[GFreqRow].Stage2MidRange;
-        SetupNextSweep(SweepRange);                                       // set sweep range parameters
-      }
-      break;
-
-    case eAlgMid1:
-      if(!ValidNewStep)                                                   // take best found and set up 2nd mid sweep
-      {
-        // we need to construct a sweep set for stage 2 1st mid sweep; keep the Z setting
-        GAlgState = eAlgMid2;
-        GCurrentSweep.IsSweepingL = !GCurrentSweep.IsSweepingL;           // opposite sweep needed now
-        GCurrentSweep.StepSize = GTuneParamArray[GFreqRow].Stage2MidStep;
-        SweepRange = GTuneParamArray[GFreqRow].Stage2MidRange;
-        SetupNextSweep(SweepRange);                                       // set sweep range parameters
-      }
-      break;
-
-    case eAlgMid2:
-      if(!ValidNewStep)                                                   // take best found and set up fine sweep
-      {
-        // we need to construct a sweep set for stage 2 1st mid sweep; keep the Z setting
-        GAlgState = eAlgFine1;
-        GCurrentSweep.IsSweepingL = !GCurrentSweep.IsSweepingL;           // opposite sweep needed now
-        GCurrentSweep.StepSize = 1;
-        SweepRange = GTuneParamArray[GFreqRow].Stage2FineRange;
-        SetupNextSweep(SweepRange);                                       // set sweep range parameters
-      }
-      break;
-
-    case eAlgFine1: 
-      if(!ValidNewStep)                                                   // take best found and set up 2nd fine sweep
-      {
-        // we need to construct a sweep set for stage 2 1st mid sweep; keep the Z setting
-        GAlgState = eAlgFine2;
-        GCurrentSweep.IsSweepingL = !GCurrentSweep.IsSweepingL;           // opposite sweep needed now
-        GCurrentSweep.StepSize = 1;
-        SweepRange = GTuneParamArray[GFreqRow].Stage2FineRange;
-        SetupNextSweep(SweepRange);                                       // set sweep range parameters
-      }
-      break;
-
-    case eAlgFine2:
-      if(!ValidNewStep)                                                   // finished final stage
-        AssessTune();
-      break;
-
-    case eAlgEEPROMWrite:
-      GAlgState = eAlgIdle;                         // finished calculating
-      GTuneActive = false;
-      break;
+        break;
+  
+      case eAlgCoarse2:
+        if(!ValidNewStep)                                                   // take best found and set up mid sweep
+        {
+          // we need to construct a sweep set for stage 2 1st mid sweep; keep the Z setting
+          GAlgState = eAlgMid1;
+          GCurrentSweep.IsSweepingL = !GCurrentSweep.IsSweepingL;           // opposite sweep needed now
+          GCurrentSweep.StepSize = GTuneParamArray[GFreqRow].Stage2MidStep;
+          SweepRange = GTuneParamArray[GFreqRow].Stage2MidRange;
+          SetupNextSweep(SweepRange);                                       // set sweep range parameters
+        }
+        break;
+  
+      case eAlgMid1:
+        if(!ValidNewStep)                                                   // take best found and set up 2nd mid sweep
+        {
+          // we need to construct a sweep set for stage 2 1st mid sweep; keep the Z setting
+          GAlgState = eAlgMid2;
+          GCurrentSweep.IsSweepingL = !GCurrentSweep.IsSweepingL;           // opposite sweep needed now
+          GCurrentSweep.StepSize = GTuneParamArray[GFreqRow].Stage2MidStep;
+          SweepRange = GTuneParamArray[GFreqRow].Stage2MidRange;
+          SetupNextSweep(SweepRange);                                       // set sweep range parameters
+        }
+        break;
+  
+      case eAlgMid2:
+        if(!ValidNewStep)                                                   // take best found and set up fine sweep
+        {
+          // we need to construct a sweep set for stage 2 1st mid sweep; keep the Z setting
+          GAlgState = eAlgFine1;
+          GCurrentSweep.IsSweepingL = !GCurrentSweep.IsSweepingL;           // opposite sweep needed now
+          GCurrentSweep.StepSize = 1;
+          SweepRange = GTuneParamArray[GFreqRow].Stage2FineRange;
+          SetupNextSweep(SweepRange);                                       // set sweep range parameters
+        }
+        break;
+  
+      case eAlgFine1: 
+        if(!ValidNewStep)                                                   // take best found and set up 2nd fine sweep
+        {
+          // we need to construct a sweep set for stage 2 1st mid sweep; keep the Z setting
+          GAlgState = eAlgFine2;
+          GCurrentSweep.IsSweepingL = !GCurrentSweep.IsSweepingL;           // opposite sweep needed now
+          GCurrentSweep.StepSize = 1;
+          SweepRange = GTuneParamArray[GFreqRow].Stage2FineRange;
+          SetupNextSweep(SweepRange);                                       // set sweep range parameters
+        }
+        break;
+  
+      case eAlgFine2:
+        if(!ValidNewStep)                                                   // finished final stage
+          AssessTune();
+        break;
+  
+      case eAlgEEPROMWrite:
+        GAlgState = eAlgIdle;                         // finished calculating
+        GTuneActive = false;
+        break;
+    }
+  //
+  // finally send L,C, low/high Z switch setting to hardware if we are in a search state
+  //  
+    if ((GAlgState != eAlgIdle) && (GAlgState != eAlgEEPROMWrite))
+      SendCandidateSolution(true);
   }
-//
-// finally send L,C, low/high Z switch setting to hardware if we are in a search state
-//  
-  if ((GAlgState != eAlgIdle) && (GAlgState != eAlgEEPROMWrite))
-    SendCandidateSolution(true);
 }
 
 
@@ -763,11 +779,10 @@ void InitiateTune(bool StartQuick)
 //
     GotRow = GetStage1Row(true);
   }
+
+  GAlgTickCount = VALGSTARTDELAYTICKS;
   GTuneActive = true;                                               // set active
   SendCandidateSolution(true);                                      // drive hardware
   GBestFoundSoFar.VSWR = VMAXVSWR;                                  // initialise VSWR best value found = worst possible
-//  DebugCounter = 320;        // 5s
-//  Serial.println("Started");
-//  GAlgState = eAlgCoarse1;                                          // set state
-//  GTuneActive = true;                                               // set active
+  GPCTuneActive = false;                                            // cancel CAT tune now we've started
 }

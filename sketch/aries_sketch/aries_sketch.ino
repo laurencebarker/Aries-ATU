@@ -20,6 +20,7 @@
 #include "algorithm.h"
 #include "tiger.h"
 #include "cathandler.h"
+#include "protect.h"
 #include <ZeroTimer.h>
 
 
@@ -33,9 +34,6 @@ byte Counter = 0;                           // tick counter for LED on/off
 int GTickCounter;                           // tick counter for 16ms tick
 
 bool GTickTriggered;                        // true if a 16ms tick has been triggered
-int GAlgTickCount;
-
-#define VALGTICKSPERSTEP 2
 #define VMAINTICKSPERTIMERTICK 8            // 8 counts of 2ms per 16ms main tick
 
 
@@ -49,20 +47,15 @@ void setup()
 //  {
 //    ;
 //  }
-
   Wire.begin();                       // I2C
-  Wire.setClock(100000);              // slow to 100KHz for LCD
+  Wire.setClock(400000);              // slow to 400KHz for external amp protect board
 
   delay(1000);
 //
 // configure I/O pins
 //
   ConfigIOPins();
-
-//
-// initialise timer to give 2ms tick interrupt
-//
-  TC.startTimer(2000, TickHandler);             // 2ms tick: timer period is in microseconds
+  delay(1000);                        // wait 1s, in case of a race for the Nextion display to be ready
 
 //
 // initialise hardware drivers (relays etc)
@@ -84,6 +77,11 @@ void setup()
 // initialise UI
 //
   LCD_UI_Initialise();
+
+//
+// initialise timer to give 2ms tick interrupt
+//
+  TC.startTimer(2000, TickHandler);             // 2ms tick: timer period is in microseconds
 }
 
 
@@ -111,7 +109,6 @@ void TickHandler(void)
   else
     GTickCounter--;
 }
-
 
 
 
@@ -144,27 +141,28 @@ void loop()
 
 //
 // read VSWR, then algorithm tick
-// make very slow to start with!
+// algorithm tick throttles its operating speed to allow relays to settle
 //
-if (--GAlgTickCount < 0)
-{
-  GAlgTickCount = VALGTICKSPERSTEP;
-  HWDriverTick();
-  AlgorithmTick();
-}
-else
-  GAlgTickCount--;
+    HWDriverTick();
+    AlgorithmTick();
 
 //
 // THETIS interface tick
 //
-  CatHandlerTick();
+    CatHandlerTick();
     
 //
 // UI tick
 //
     LCD_UI_Tick();
-  }
+
+// 
+// amplifier protection, if included
+//
+#ifdef AMPLIFIERPROTECTION
+    ProtectionTick();
+#endif
+  }   // while loop
 }
 
 
@@ -178,23 +176,24 @@ void ConfigIOPins(void)
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(VPINENCODER1A, INPUT_PULLUP);                 // normal encoder
   pinMode(VPINENCODER1B, INPUT_PULLUP);                 // normal encoder
-
-// pinMode(VPINENCODER2A, INPUT_PULLUP);                 // normal encoder
-// pinMode(VPINENCODER2B, INPUT_PULLUP);                 // normal encoder
+  pinMode(VPINENCODER1PB, INPUT_PULLUP);                // normal pushbutton
 
   pinMode(VPINTR_PTTOUT, OUTPUT);
-  pinMode(VPINENCODER1PB, INPUT_PULLUP);                // normal pushbutton
-  pinMode(VPINRELAYLOHIZ, OUTPUT);                      // relay o/p
   pinMode(VPINSERIALLOAD, OUTPUT);                      // serial data latch o/p
   pinMode(VPINPTT, INPUT_PULLUP);                       // PTT input
   pinMode(VPINLED, OUTPUT);                             // status LED (normal D13 ise used for SPI)
 
   pinMode(VPINHWTUNECMD, INPUT_PULLUP);                 // hardwired TUNE command input
-  pinMode(VPINSTANDALONEJUMPER, INPUT);                 // jumper input for STANDALONE
+  pinMode(VPINSTANDALONEJUMPER, INPUT_PULLUP);          // jumper input for STANDALONE
   pinMode(VPINSTANDALONEANTA, INPUT_PULLUP);            // wired input for antenna select
   pinMode(VPINSTANDALONEANTB, INPUT_PULLUP);            // wired input for antenna select
-  
-  
+
+#ifdef AMPLIFIERPROTECTION
+  pinMode(VPINPROTECTIONTRIP, INPUT_PULLUP);            // protection trip i/p (hw rev 5+)
+#else
+  pinMode(VPINRELAYLOHIZ, OUTPUT);                      // relay o/p
+#endif
+
   digitalWrite(VPINRELAYLOHIZ, LOW);                    // deactivate relay
   digitalWrite(VPINTR_PTTOUT, LOW);                     // deactivate T/R output
 
@@ -203,4 +202,9 @@ void ConfigIOPins(void)
   
 // h/w tune interrupt needs to catch falling edge to initiate a tune request.
   attachInterrupt(VPINHWTUNECMD, HWTuneISR, FALLING);
+
+#ifdef AMPLIFIERPROTECTION
+// amplifier protection trip interrupt, if compiled in.
+  attachInterrupt(VPINHWTUNECMD, TripISR, FALLING);
+#endif
 }

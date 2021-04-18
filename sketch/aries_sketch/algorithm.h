@@ -13,6 +13,7 @@
 #define __tunealgorithm_h
 
 extern bool GTuneActive;              // bool set true when algorithm running. Clear it to terminate.
+extern bool GQuickTuneEnabled;         // true if quick tune allowed
 
 
 //

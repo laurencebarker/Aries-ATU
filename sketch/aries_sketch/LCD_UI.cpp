@@ -93,8 +93,7 @@ PushbuttonDebounce EncoderBtnDebounce(VPINENCODER1PB, 64);          // toggle L/
 // display full scale values for power graphs
 // done this way it is easy to add more!
 //
-#define VMAXSCALESETTING 4
-const unsigned int GFullPowerScale[VMAXSCALESETTING + 1]=
+const unsigned int GFullPowerScale[VDISPLAYSCALE + 1]=
 {
   100,
   200,
@@ -107,7 +106,7 @@ const unsigned int GFullPowerScale[VMAXSCALESETTING + 1]=
 // picture id values for nextion display bargraphs
 // these ID values must match the image ID values in the editor!
 //
-const unsigned int GPowerForeground[VMAXSCALESETTING + 1] =
+const unsigned int GPowerForeground[VDISPLAYSCALE + 1] =
 {
   16,             // 100W display
   19,             // 200W display
@@ -116,7 +115,7 @@ const unsigned int GPowerForeground[VMAXSCALESETTING + 1] =
   3               // 2kW display
 };
 
-const unsigned int GPowerBackground[VMAXSCALESETTING + 1] =
+const unsigned int GPowerBackground[VDISPLAYSCALE + 1] =
 {
   18,             // 100W display
   17,             // 200W display
@@ -127,7 +126,7 @@ const unsigned int GPowerBackground[VMAXSCALESETTING + 1] =
 
 
 // picture ID values for the background image for the meter display
-const unsigned int GMeterPicture[VMAXSCALESETTING + 1] =
+const unsigned int GMeterPicture[VDISPLAYSCALE + 1] =
 {
   12,             // 100W display
   13,             // 200W display
@@ -139,7 +138,7 @@ const unsigned int GMeterPicture[VMAXSCALESETTING + 1] =
 
 
 // picture ID values for the background image for the crossed needle display
-const unsigned int GCrossedNeedlePicture[VMAXSCALESETTING + 1] =
+const unsigned int GCrossedNeedlePicture[VDISPLAYSCALE + 1] =
 {
   8,              // 100W display
   9,              // 200W display
@@ -152,7 +151,7 @@ const unsigned int GCrossedNeedlePicture[VMAXSCALESETTING + 1] =
 //
 // display scale strings for page 5
 //
-const char* GDisplayScaleStrings[VMAXSCALESETTING + 1] =
+const char* GDisplayScaleStrings[VDISPLAYSCALE + 1] =
 {
   "100W (R12,13 = 2K7)",
   "200W (R12,13 = 4K7)",
@@ -776,7 +775,7 @@ void p5Ant4PushCallback(void *ptr)         // erase antenna 4
 //
 void p5ScalePushCallback(void *ptr)         // set display scale
 {
-  if(++GDisplayScale > VMAXSCALESETTING)         // increment, save to eeprom then display
+  if(++GDisplayScale > VDISPLAYSCALE)         // increment, save to eeprom then display
     GDisplayScale = 0;
   EEWriteScale(GDisplayScale);
   p5ScaleTxt.setText(GDisplayScaleStrings[GDisplayScale]);
@@ -1410,8 +1409,8 @@ void NextionDisplayTick(void)
     case eSetupPage:
       if(GInitialisePage)                       // initialise the controls not refreshed often
       {
-        if(GDisplayScale > VMAXSCALESETTING)
-          GDisplayScale = VMAXSCALESETTING;
+        if(GDisplayScale > VDISPLAYSCALE)
+          GDisplayScale = VDISPLAYSCALE;
         p5ScaleTxt.setText(GDisplayScaleStrings[GDisplayScale]);
         if(GQuickTuneEnabled)
           p5AlgBtn.setText("Quick");

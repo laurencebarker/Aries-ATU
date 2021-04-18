@@ -29,8 +29,6 @@
 #define VEEENABLEDLOC 0x1FFF2L
 #define VEEDISPLAYSCALELOC 0x1FFF3L
 #define VEEALLOWQUICKLOC 0x1FFF4L
-#define VNUMSCALES 4                    // number of display scales
-#define VNUMPAGES 4                     // number of usable display pages
 
 
 
@@ -45,7 +43,6 @@
 #define EEPAGESIZE 128
 unsigned int GTunedFrequency10;                 // frequency from THETIS, in 10KHz resolution. 0 = DC
 bool GATUEnabled;                               // true if the ATU is enabled
-bool GQuickTuneEnabled;                         // true if quick tune allowed
 unsigned int GQueuedCATFrequency;               // frequency passed by tHETIS if TX was active.
 byte GRXAntenna;                                // selected RX antenna (1-3; 0 if not set)
 byte GTXAntenna;                                // selected TX antenna (1-3; 0 if not set)
@@ -427,8 +424,8 @@ byte EEReadScale(void)
 {
   byte Result;
   Result = myEEPROM.read(VEEDISPLAYSCALELOC);
-  if(Result > VNUMSCALES)
-    Result = VNUMSCALES;
+  if(Result > VDISPLAYSCALE)
+    Result = VDISPLAYSCALE;
   return (byte)Result;
 }
 
@@ -827,21 +824,22 @@ void PttISR(void)
 #endif
     digitalWrite(VPINTR_PTTOUT, HIGH);                    // activate T/R output
 
- 
-//
-// either send new data to SPI, or queue a shift
-//  
-    if(GSPIShiftInProgress)
-      GResendSPI = true;
-    else
-      DriveSolution();                                         // drive SPI. This sets T/R state AND sends L/C data
 //
 // if Tune command already sent via CAT, initiate tune
 // (there is a race condition and it's unclear whether the CAT tune command or PTT would happen first)
 //
-    if(GPCTuneActive == true)
+//    if(GPCTuneActive == true)
+//      InitiateTune(GQuickTuneEnabled);                               // try quick tune
+//    else
+    if(GPCTuneActive == false)
     {
-      InitiateTune(GQuickTuneEnabled);                               // try quick tune
+//
+// either send new data to SPI, or queue a shift
+//  
+      if(GSPIShiftInProgress)
+        GResendSPI = true;
+      else
+        DriveSolution();                                         // drive SPI. This sets T/R state AND sends L/C data
     }
   }
 }

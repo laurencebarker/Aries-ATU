@@ -18,18 +18,18 @@
 
 #define VPINENCODER1A A2              // encoder 1 - inductance
 #define VPINENCODER1B A3
-
-#define VPINENCODER2A A6              // encoder 2 - capacitance
-#define VPINENCODER2B A7
+#define VPINENCODER1PB 4              // encoder 1 pushbutton
 
 #define VPINTR_PTTOUT 3               // PTT asserted output
-#define VPINENCODER1PB 4              // encoder 1 pushbutton
-#define VPINRELAYLOHIZ 8              // relay for low/high impedance mode: logic 1 selects "low Z" (note moved from pin 12)
 #define VPINPTT 10                    // PTT input. 0 = TX.  !will need to set an interrupt!
 #define VPINSERIALLOAD 6              // latch serial data output 
 #define VPINLED 7                     // status LED (note the normal D13 LED pin used for SPI)
 
 #define VPINHWTUNECMD 9               // hardwire TUNE input, if used
+
+// alternate uses for this pin - #defined as required
+#define VPINRELAYLOHIZ 8              // relay for low/high impedance mode: logic 1 selects "low Z" (note moved from pin 12)
+#define VPINPROTECTIONTRIP 8          // amplifier protection trip input (hw rev % and above)
 
 #define VPINSTANDALONEJUMPER 12       // jumper to enable standalone mode. Standalone = jumper inserted, input = 0
 #define VPINSTANDALONEANTA 2          // antenna input in standalone mode

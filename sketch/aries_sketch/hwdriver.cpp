@@ -46,6 +46,8 @@ unsigned int GVFArray[VNUMADCAVG];          // circular buffer of Vf values
 unsigned int GVRArray[VNUMADCAVG];          // circular buffer of Vr values
 unsigned int GCircBufferPtr;                // current position to write to
 
+#define VHILOZBIT 0b00001000                // high low Z bit in SPI shift word
+
 
 //
 // scale factors from ADC reading to RMS line volts
@@ -119,6 +121,7 @@ void InitialiseHardwareDrivers(void)
 
 //
 // function to set the ADC power scaling value depending on the display scale in use
+// range 0-4
 //
 void SetADCScaleFactor(byte DisplayScale)
 {
@@ -150,9 +153,8 @@ void SetAntennaSPI(int Antenna, bool IsRXAnt)
   if(IsRXAnt)
   {
     OriginalRXAntennaWord = StoredAntennaRXTRValue;
-    StoredAntennaRXTRValue = (StoredAntennaRXTRValue & 0b11111000);       // erase old ant, and TX bit off
-    StoredAntennaRXTRValue |= Ant;                                        // add in new ant
-    if(StoredAntennaRXTRValue != OriginalRXAntennaWord)                   // update hardware if changed
+    StoredAntennaRXTRValue = Ant;                                        // add in new ant
+    if(StoredAntennaRXTRValue != OriginalRXAntennaWord)                  // update hardware if changed
     {
 //
 // either send new data to SPI, or queue a shift
@@ -165,11 +167,8 @@ void SetAntennaSPI(int Antenna, bool IsRXAnt)
         GResendSPI = true;
     }
   }
-  else
-  {
-    StoredAntennaTXTRValue = (StoredAntennaTXTRValue & 0b11111000);       // erase old ant, and TX bit off
-    StoredAntennaTXTRValue |= Ant;                                      // add in new ant
-  }
+  else      // TX antenna
+    StoredAntennaTXTRValue = Ant;                                      // add in new ant
 }
 
 
@@ -250,6 +249,13 @@ void HWDriverTick(void)
 //
   VFwd = (float)FwdVoltReading * GADCScaleFactor;    // forward line RMS voltage
   VRev = (float)RevVoltReading * GADCScaleFactor;    // reverse line RMS voltage
+
+#ifdef CONDITIONAL_ALG_DEBUG
+    Serial.print("Vf=");
+    Serial.print(FwdVoltReading);
+    Serial.print(" Vr=");
+    Serial.println(RevVoltReading);
+#endif
 
 #ifdef CONDITIONAL_STREAM_ADCREADINGS
   if (FwdVoltReading > 0)
@@ -346,7 +352,8 @@ void DriveSolution(void)
       GSPIShiftSettings[0] = StoredAntennaTXTRValue;
     else
       GSPIShiftSettings[0] = StoredAntennaRXTRValue;
-    
+    if(StoredHiLoZ)
+      GSPIShiftSettings[0] |= VHILOZBIT;
     GSPIShiftSettings[1] = StoredCValue;
     GSPIShiftSettings[2] = StoredLValue;
     
@@ -363,12 +370,15 @@ void DriveSolution(void)
       NotDoneShift = false;
   }
   GSPIShiftInProgress = false;
+  
+// on rev 4 and below hardware, drive out the high/low Z bit on DIG8
+#ifndef HWREV5
   if(StoredHiLoZ == true)
     digitalWrite(VPINRELAYLOHIZ, HIGH);     // high Z
   else
    digitalWrite(VPINRELAYLOHIZ, LOW);     // low Z
+#endif
 }
-
 
 //
 // find peak power by searching buffer
