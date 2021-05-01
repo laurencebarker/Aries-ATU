@@ -250,13 +250,6 @@ void HWDriverTick(void)
   VFwd = (float)FwdVoltReading * GADCScaleFactor;    // forward line RMS voltage
   VRev = (float)RevVoltReading * GADCScaleFactor;    // reverse line RMS voltage
 
-#ifdef CONDITIONAL_ALG_DEBUG
-    Serial.print("Vf=");
-    Serial.print(FwdVoltReading);
-    Serial.print(" Vr=");
-    Serial.println(RevVoltReading);
-#endif
-
 #ifdef CONDITIONAL_STREAM_ADCREADINGS
   if (FwdVoltReading > 0)
   {

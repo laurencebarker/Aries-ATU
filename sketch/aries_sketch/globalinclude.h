@@ -49,7 +49,7 @@
 //
 // define this variable if algorithm debug messages are to be printed
 //
-//#define CONDITIONAL_ALG_DEBUG 1
+#define CONDITIONAL_ALG_DEBUG 1
 
 
 //

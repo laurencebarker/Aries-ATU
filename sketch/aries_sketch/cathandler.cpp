@@ -533,9 +533,7 @@ void SetTuneOnOff(bool State)
   {
     GPCTuneActive = State;
     if(State && GPTTPressed)
-    {
       InitiateTune(GQuickTuneEnabled);                               // try quick tune
-    }
   }
 }
 
@@ -796,12 +794,16 @@ void HWTuneISR(void)
 #ifdef CONDITIONAL_ALG_DEBUG
     Serial.println("HW TUNE");                                // debug to confirm state
 #endif
-
-    GPCTuneActive = true;
-    if(GPTTPressed && GATUEnabled)
-      InitiateTune(GQuickTuneEnabled);
+    if(GATUEnabled)
+    {
+      GPCTuneActive = true;
+      if(GTuneHWPressed && GPTTPressed)
+        InitiateTune(GQuickTuneEnabled);                               // try quick tune
+    }
   }
 }
+
+
 
 
 //

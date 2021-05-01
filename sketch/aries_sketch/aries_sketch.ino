@@ -205,6 +205,6 @@ void ConfigIOPins(void)
 
 #ifdef AMPLIFIERPROTECTION
 // amplifier protection trip interrupt, if compiled in.
-  attachInterrupt(VPINHWTUNECMD, TripISR, FALLING);
+  attachInterrupt(VPINPROTECTIONTRIP, TripISR, FALLING);
 #endif
 }
