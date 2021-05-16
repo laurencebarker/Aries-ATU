@@ -39,30 +39,28 @@ bool GTickTriggered;                        // true if a 16ms tick has been trig
 
 void setup() 
 {
-  // put your setup code here, to run once:
   Serial.begin(9600);               // PC communication
 //
 // removed the "wait for serial before starting"
-//  while (!Serial)                   // wait for it to be ready 
-//  {
-//    ;
-//  }
-  Wire.begin();                       // I2C
-  Wire.setClock(400000);              // slow to 400KHz for external amp protect board
-
-  delay(1000);
+  while (!Serial)                   // wait for it to be ready 
+  {
+    ;
+  }
 //
 // configure I/O pins
 //
   ConfigIOPins();
   delay(1000);                        // wait 1s, in case of a race for the Nextion display to be ready
-
 //
 // initialise hardware drivers (relays etc)
 //
   InitialiseHardwareDrivers();
-
-
+  Wire.begin();                       // I2C
+  Wire.setClock(400000);              // slow to 400KHz for external amp protect board
+//
+// initialise amplifier proection. This detects whether the MCP23017 is present
+//
+  InitProtection();
 //
 // initialise algorithm
 //
@@ -73,6 +71,7 @@ void setup()
   InitCAT();
   InitCATHandler();
 
+//
 //
 // initialise UI
 //
@@ -150,18 +149,17 @@ void loop()
 // THETIS interface tick
 //
     CatHandlerTick();
+
+// 
+// amplifier protection, if included
+//
+    if(GProtectionPresent)
+      ProtectionTick();
     
 //
 // UI tick
 //
     LCD_UI_Tick();
-
-// 
-// amplifier protection, if included
-//
-#ifdef AMPLIFIERPROTECTION
-    ProtectionTick();
-#endif
   }   // while loop
 }
 
@@ -188,13 +186,13 @@ void ConfigIOPins(void)
   pinMode(VPINSTANDALONEANTA, INPUT_PULLUP);            // wired input for antenna select
   pinMode(VPINSTANDALONEANTB, INPUT_PULLUP);            // wired input for antenna select
 
-#ifdef AMPLIFIERPROTECTION
-  pinMode(VPINPROTECTIONTRIP, INPUT_PULLUP);            // protection trip i/p (hw rev 5+)
-#else
-  pinMode(VPINRELAYLOHIZ, OUTPUT);                      // relay o/p
-#endif
-
-  digitalWrite(VPINRELAYLOHIZ, LOW);                    // deactivate relay
+  if(HWVERSION >= 5)
+    pinMode(VPINPROTECTIONTRIP, INPUT_PULLUP);            // protection trip i/p (hw rev 5+)
+  else
+  {
+    pinMode(VPINRELAYLOHIZ, OUTPUT);                      // relay o/p
+    digitalWrite(VPINRELAYLOHIZ, LOW);                    // deactivate relay
+  }
   digitalWrite(VPINTR_PTTOUT, LOW);                     // deactivate T/R output
 
 // PTT interrupt needs to catch both edges so we can send SPI data for T/R relay and RX/TX antenna
@@ -203,8 +201,4 @@ void ConfigIOPins(void)
 // h/w tune interrupt needs to catch falling edge to initiate a tune request.
   attachInterrupt(VPINHWTUNECMD, HWTuneISR, FALLING);
 
-#ifdef AMPLIFIERPROTECTION
-// amplifier protection trip interrupt, if compiled in.
-  attachInterrupt(VPINPROTECTIONTRIP, TripISR, FALLING);
-#endif
 }

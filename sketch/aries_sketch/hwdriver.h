@@ -22,6 +22,7 @@ extern bool GSPIShiftInProgress;                   // true if SPI shify is curre
 extern unsigned int GVf, GVr;                      // forward and reverse voltages
 extern float GVSWR;                                // calculated VSWR value
 extern unsigned int GForwardPower;                 // forward power (W)
+extern unsigned int GPACurrent;                    // PA current in 100mA units (1 decimal point)
 
 
 

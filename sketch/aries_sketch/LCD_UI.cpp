@@ -20,8 +20,8 @@
 #include "globalinclude.h"
 #include "cathandler.h"
 #include <Arduino.h>
-
 #include <Nextion.h>
+#include "protect.h"
 
 
 //
@@ -52,6 +52,7 @@
 //
 // global variables
 //
+bool GNexDisplayPresent;                      // set to true if a display detected
 bool GIsPeakDisplay;                          // true if we are using peak display
 EDisplayPage GDisplayPage;                    // global set to current display page number
 int GSplashCountdown;                         // counter for splash page
@@ -63,6 +64,10 @@ byte GForwardOverscale, GReverseOverscale;    // set non zero if an overscale de
 bool GInitialisePage;                         // true if page needs to be initialised
 bool GCrossedNeedleRedrawing;                 // true if display is being redrawn
 unsigned char GUpdateMeterTicks;              // number of ticks since a meter display updated
+
+// amp protection mode
+byte GBandDisplayed;                          // 0-7; 0 = 6m
+EDisplayPage GDisplayPageBeforeTrip;          // global set to current display page number
 
 
 bool GEncoderCapacitance;
@@ -161,7 +166,21 @@ const char* GDisplayScaleStrings[VDISPLAYSCALE + 1] =
 };
 
 
-
+#define VNUMBANDS 7 
+//
+// display band strings for amplifier protection
+//
+const char* GDisplayBandStrings[VNUMBANDS+1] =
+{
+  "6m",
+  "10m",
+  "15m",
+  "20m",
+  "40m",
+  "80m",
+  "160m",
+  "--"
+};
 
 
 //
@@ -177,6 +196,7 @@ NexPage page2 = NexPage(2, 0, "page2");       // creates touch event for "power 
 NexPage page3 = NexPage(3, 0, "page3");       // creates touch event for "analogue meter" page
 NexPage page4 = NexPage(4, 0, "page4");       // creates touch event for "engineering" page
 NexPage page5 = NexPage(5, 0, "page5");       // creates touch event for "setup" page
+NexPage page6 = NexPage(6, 0, "page6");       // creates touch event for "protection tripped" page
 
 //
 // page 0 objects:
@@ -191,6 +211,7 @@ NexButton p1DisplayBtn = NexButton(1, 2, "p1b0");                 // Display pus
 NexButton p1PeakBtn = NexButton(1, 3, "p1b1");                    // normal/peak button
 NexButton p1EnableBtn = NexButton(1, 4, "p1b2");                  // Enable pushbutton
 NexText p1Status = NexText(1, 5, "p1t0");                         // ready/tuning etc
+NexText p1Band = NexText(1, 6, "p1t1");                           // band in standalone mode
 
 //
 // page 2 objects:
@@ -203,6 +224,7 @@ NexProgressBar p2VSWRBar = NexProgressBar(2, 6, "p2j1");          // VSWR bar
 NexButton p2PeakBtn = NexButton(2, 10, "p2b1");                   // normal/peak button
 NexButton p2EnableBtn = NexButton(2, 11, "p2b2");                 // Enable pushbutton
 NexText p2Status = NexText(2, 12, "p2t0");                        // ready/tuning etc
+NexText p2Band = NexText(2, 13, "p2t5");                          // band in standalone mode
 
 //
 // page 3 objects:
@@ -213,6 +235,7 @@ NexGauge p3Meter = NexGauge(3, 1, "p3z0");                        // power meter
 NexProgressBar p3VSWRBar = NexProgressBar(3, 2, "p3j0");          // VSWR bar
 NexButton p3EnableBtn = NexButton(3, 5, "p3b2");                  // Enable pushbutton
 NexText p3Status = NexText(3, 6, "p3t0");                         // ready/tuning etc
+NexText p3Band = NexText(3, 7, "p3t1");                           // band in standalone mode
 
 //
 // page 4 objects:
@@ -234,6 +257,7 @@ NexText p4AntValue = NexText(4, 24, "p4t8");                // Antenna number
 NexText p4Status = NexText(4, 27, "p4t0");                  // ready/tuning etc
 NexText p4PTT = NexText(4, 26, "p4t9");                     // PTT on/off
 NexText p4Quick = NexText(4, 28, "p4t11");                  // quick tune on/off
+NexText p4Current = NexText(4, 32, "p4t12");                // PA Current
 NexButton p4EnableBtn = NexButton(4, 25, "p4b7");           // Enable pushbutton
 NexButton p4DisplayBtn = NexButton(4, 1, "p4b0");           // Setup page pushbutton
 NexButton p4SetupBtn = NexButton(4, 29, "p4b8");            // Setup pushbutton
@@ -249,8 +273,16 @@ NexButton p5Ant3Btn = NexButton(5, 9, "p5b4");              // Ant 3 erase pushb
 NexButton p5Ant4Btn = NexButton(5, 10, "p5b5");             // Ant 4 erase pushbutton
 NexButton p5ScaleBtn = NexButton(5, 4, "p5b1");             // change display scale pushbutton
 NexButton p5RtnBtn = NexButton(5, 1, "p5b0");               // return display pushbutton
-NexButton p5AlgBtn = NexButton(5, 12, "p5b6");               // algorithm "quick" pushbutton
+NexButton p5AlgBtn = NexButton(5, 12, "p5b6");              // algorithm "quick" pushbutton
 
+//
+// page 6 objects:
+// 
+NexText p6VSWRTxt = NexText(6, 6, "p6t5");                  // VSWR tripped state
+NexText p6RevPwrTxt = NexText(6, 7, "p6t6");                // reverse power tripped state
+NexText p6DrivePwrTxt = NexText(6, 8, "p6t7");              // drive power tripped state
+NexText p6TempTxt = NexText(6, 9, "p6t8");                  // temperature tripped state
+NexButton p6ResetBtn = NexButton(6, 10, "p6b0");            // reset pushbutton
 
 //
 // declare touch event objects to the touch event list
@@ -258,6 +290,12 @@ NexButton p5AlgBtn = NexButton(5, 12, "p5b6");               // algorithm "quick
 //
 NexTouch *nex_listen_list[] = 
 {
+  &page1,                                     // page change
+  &page2,                                     // page change
+  &page3,                                     // page change
+  &page4,                                     // page change
+  &page5,                                     // page change
+  &page6,                                     // page change
   &p1PeakBtn,                                 // average/peak power
   &p1EnableBtn,                               // ATU enable/disable
   &p1DisplayBtn,                              // change display button
@@ -283,6 +321,7 @@ NexTouch *nex_listen_list[] =
   &p5ScaleBtn,                                // Display scale button
   &p5RtnBtn,                                  // Return display button
   &p5AlgBtn,                                  // algorithm "quick" button
+  &p6ResetBtn,                                // trip reset button
   NULL                                        // terminates the list
 };
 
@@ -332,7 +371,7 @@ int GetPowerMeterDegrees(bool IsForward, bool IsPeak)
   float Degrees;
   
   FullScale = (float)GFullPowerScale[GDisplayScale];
-;
+
   if(IsPeak)
     Power = FindPeakPower(IsForward);            // get power in watts
   else
@@ -396,13 +435,14 @@ int GetVSWRPercent(void)
 //
 void SetHighLowZButtonText()
 {
-  if(GDisplayPage == eEngineeringPage)
+  if((GDisplayPage == eEngineeringPage) && GNexDisplayPresent)
   {
     if(GetHiLoZ())
       p4HighZBtn.setText("High Z");
     else
       p4HighZBtn.setText("Low Z");
   }
+
 }
 
 
@@ -411,7 +451,7 @@ void SetHighLowZButtonText()
 //
 void SetCoarseButtonText()
 {
-  if(GDisplayPage == eEngineeringPage)
+  if((GDisplayPage == eEngineeringPage) && GNexDisplayPresent)
   {
     if(IsCoarse)
       p4FineBtn.setText("Coarse");
@@ -437,17 +477,18 @@ void SetEnabledButtonText()
     case eCrossedNeedlePage:                       // crossed needle VSWR page display
       Ptr = &p1EnableBtn;
       break;
-    case ePowerBargraphPage:                       // linear watts bargraph page display
+    case ePowerBargraphPage:                        // linear watts bargraph page display
       Ptr = &p2EnableBtn;
       break;
-    case eMeterPage:                               // analogue power meter
+    case eMeterPage:                                // analogue power meter
       Ptr = &p3EnableBtn;
       break;
     case eEngineeringPage:                          // engineering page with raw ADC values
       Ptr = &p4EnableBtn;
       break;
   }
-  if (Ptr != NULL)                                  // if there is a valid control, update it
+
+  if ((Ptr != NULL) && GNexDisplayPresent)          // if there is a valid control, update it
   {
     if(GATUEnabled)
       Ptr->setText("Enabled");
@@ -469,21 +510,21 @@ void SetPeakButtonText()
 
   switch(GDisplayPage)                              // get ptr to the right page's control
   {
-    case eSplashPage:                              // startup splash page
+    case eSplashPage:                               // startup splash page
     case eEngineeringPage:                          // engineering page with raw ADC values
       Ptr = NULL;
       break;
-    case eCrossedNeedlePage:                       // crossed needle VSWR page display
+    case eCrossedNeedlePage:                        // crossed needle VSWR page display
       Ptr = &p1PeakBtn;
       break;
-    case ePowerBargraphPage:                       // linear watts bargraph page display
+    case ePowerBargraphPage:                        // linear watts bargraph page display
       Ptr = &p2PeakBtn;
       break;
-    case eMeterPage:                               // analogue power meter
+    case eMeterPage:                                // analogue power meter
       Ptr = &p3PeakBtn;
       break;
   }
-  if (Ptr != NULL)                                  // if there is a valid control, update it
+  if ((Ptr != NULL) && GNexDisplayPresent)          // if there is a valid control, update it
   {
     if(GIsPeakDisplay)
       Ptr->setText("Peak");
@@ -496,6 +537,46 @@ void SetPeakButtonText()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // touch event handlers
+//
+// event handlers are only called when a display is present, so no need to check with if(GNexDisplayPresent)
+//
+void page1PushCallback(void *ptr)             // called when page 1 loads (x needle)
+{
+  GDisplayPage = eCrossedNeedlePage;
+  GInitialisePage = true;
+}
+
+void page2PushCallback(void *ptr)             // called when page 2 loads (log bargraph)
+{
+  GDisplayPage = ePowerBargraphPage;
+  GInitialisePage = true;
+}
+
+void page3PushCallback(void *ptr)             // called when page 3 loads (analogue meter)
+{
+  GDisplayPage = eMeterPage;
+  GInitialisePage = true;
+}
+
+void page4PushCallback(void *ptr)             // called when page 4 loads (engineering)
+{
+  GDisplayPage = eEngineeringPage;
+  GInitialisePage = true;
+}
+
+void page5PushCallback(void *ptr)             // called when page 5 loads (setup)
+{
+  GDisplayPage = eSetupPage;
+  GInitialisePage = true;
+}
+
+void page6PushCallback(void *ptr)             // called when page 6 loads (trip)
+{
+  GDisplayPage = eTripPage;
+  GInitialisePage = true;
+}
+
+
 
 //
 // touch event - page 1 Peak
@@ -522,10 +603,11 @@ void p1EnabledPushCallback(void *ptr)         // enable/disable ATU
 //
 void p1DisplayPushCallback(void *ptr)         // change display
 {
-  GDisplayPage = ePowerBargraphPage;
   page2.show();
+  GDisplayPage = eTransitioning;
   EEWritePage(2);
-  GInitialisePage = true;
+//  GDisplayPage = ePowerBargraphPage;        // set by event handler
+//  GInitialisePage = true;
 }
 
 
@@ -557,10 +639,11 @@ void p2DisplayPushCallback(void *ptr)         // change display
 {
   if(!GTuneActive)
   {
-    GDisplayPage = eMeterPage;
     page3.show();
+    GDisplayPage = eTransitioning;
     EEWritePage(3);
-    GInitialisePage = true;
+//    GDisplayPage = eMeterPage;
+//    GInitialisePage = true;
   }
 }
 
@@ -593,10 +676,11 @@ void p3DisplayPushCallback(void *ptr)         // change display
 {
   if (!GTuneActive)
   {
-    GDisplayPage = eEngineeringPage;
     page4.show();
+    GDisplayPage = eTransitioning;
     EEWritePage(4);
-    GInitialisePage = true;
+//    GDisplayPage = eEngineeringPage;
+//    GInitialisePage = true;
   }
 }
 
@@ -620,10 +704,11 @@ void p4DisplayPushCallback(void *ptr)         // change display
 {
   if (!GTuneActive)
   {
-    GDisplayPage = eCrossedNeedlePage;
     page1.show();
+    GDisplayPage = eTransitioning;
     EEWritePage(1);
-    GInitialisePage = true;
+//    GDisplayPage = eCrossedNeedlePage;
+//    GInitialisePage = true;
   }
 }
 
@@ -633,9 +718,10 @@ void p4DisplayPushCallback(void *ptr)         // change display
 //
 void p4SetupPushCallback(void *ptr)         // change display to page 5
 {
-    GDisplayPage = eSetupPage;
     page5.show();
-    GInitialisePage = true;
+    GDisplayPage = eTransitioning;
+//    GDisplayPage = eSetupPage;
+//    GInitialisePage = true;
 }
 
 
@@ -708,6 +794,7 @@ void p4CPlusPushCallback(void *ptr)           // increase capacitance by one ste
   DriveSolution();
 }
 
+
 //
 // touch event - page 4 Coarse/Fine
 //
@@ -716,6 +803,7 @@ void p4FinePushCallback(void *ptr)            // get new coarse/fine state
   IsCoarse = !IsCoarse;
   SetCoarseButtonText();
 }
+
 
 //
 // touch event - page 4 High/Low Z
@@ -730,6 +818,7 @@ void p4HighZPushCallback(void *ptr)           // get new High/Low Z state
   DriveSolution();
 }
 
+
 //
 // touch event - page 5 Antenna 1
 //
@@ -739,6 +828,7 @@ void p5Ant1PushCallback(void *ptr)         // erase antenna 1
   EEEraseSolutionSet(1);
   p5EraseTxt.setText("Done");
 }
+
 
 //
 // touch event - page 5 Antenna 2
@@ -750,6 +840,7 @@ void p5Ant2PushCallback(void *ptr)         // erase antenna 2
   p5EraseTxt.setText("Done");
 }
 
+
 //
 // touch event - page 5 Antenna 3
 //
@@ -760,6 +851,7 @@ void p5Ant3PushCallback(void *ptr)         // erase antenna 3
   p5EraseTxt.setText("Done");
 }
 
+
 //
 // touch event - page 5 Antenna 4
 //
@@ -769,6 +861,7 @@ void p5Ant4PushCallback(void *ptr)         // erase antenna 4
   EEEraseSolutionSet(4);
   p5EraseTxt.setText("Done");
 }
+
 
 //
 // touch event - page 5 display scale
@@ -781,15 +874,18 @@ void p5ScalePushCallback(void *ptr)         // set display scale
   p5ScaleTxt.setText(GDisplayScaleStrings[GDisplayScale]);
 }
 
+
 //
 // touch event - page 5 Return
 //
 void p5RtnPushCallback(void *ptr)           // change display
 {
-    GDisplayPage = eEngineeringPage;
-    page4.show();
-    GInitialisePage = true;
+  page4.show();
+  GDisplayPage = eTransitioning;
+//    GDisplayPage = eEngineeringPage;
+//    GInitialisePage = true;
 }
+
 
 //
 // touch event - page 5 Algorithm quick/not quick
@@ -802,6 +898,16 @@ void p5AlgPushCallback(void *ptr)           // change algorithm setting
     p5AlgBtn.setText("Quick");
   else
     p5AlgBtn.setText("Full");
+}
+
+
+
+//
+// touch event - page 6 Reset button
+//
+void p6ResetPushCallback(void *ptr)           // reset protection
+{
+  TripResetPressed();
 }
 
 
@@ -881,7 +987,7 @@ void SetBargraphImages(void)
   char Str2[5];
 
   Str2[0]=0;                                            // empty the string
-  if(GDisplayPage == 2)
+  if((GDisplayPage == 2) && GNexDisplayPresent)
   {
     Image = GPowerForeground[GDisplayScale];       // foreground image number
     mysprintf(Str2, Image, false);
@@ -907,7 +1013,7 @@ void SetMeterImages(void)
   char Str2[5];
 
   Str2[0]=0;                                            // empty the string
-  if(GDisplayPage == 3)
+  if((GDisplayPage == 3) && GNexDisplayPresent)
   {
     Image = GMeterPicture[GDisplayScale];       // foreground image number
     mysprintf(Str2, Image, false);
@@ -925,7 +1031,7 @@ void SetMeterImages(void)
 void SetCrossedNeedleImages(void)
 {
   byte Image;
-  if(GDisplayPage == 1)
+  if((GDisplayPage == 1) && GNexDisplayPresent)
   {
     Image = GCrossedNeedlePicture[GDisplayScale];       // foreground image number
     p1Axes.setPic(Image);
@@ -945,7 +1051,14 @@ void LCD_UI_Initialise(void)
   SetADCScaleFactor(GDisplayScale);
   
   GDisplayItem = 0;
-  nexInit(115200);
+  GNexDisplayPresent = nexInit(115200);
+
+  page1.attachPush(page1PushCallback);
+  page2.attachPush(page2PushCallback);
+  page3.attachPush(page3PushCallback);
+  page4.attachPush(page4PushCallback);
+  page5.attachPush(page5PushCallback);
+  page6.attachPush(page6PushCallback);
   p1PeakBtn.attachPush(p1PeakPushCallback);
   p1EnableBtn.attachPush(p1EnabledPushCallback);
   p1DisplayBtn.attachPush(p1DisplayPushCallback);
@@ -971,6 +1084,7 @@ void LCD_UI_Initialise(void)
   p5ScaleBtn.attachPush(p5ScalePushCallback);
   p5RtnBtn.attachPush(p5RtnPushCallback);
   p5AlgBtn.attachPush(p5AlgPushCallback);
+  p6ResetBtn.attachPush(p6ResetPushCallback);
 //
 // initialise display variables, then set all elements
 //  
@@ -987,7 +1101,8 @@ void LCD_UI_Initialise(void)
 
   GIsPeakDisplay = EEReadPeak();
   mysprintf(Str, SWVERSION, false);                 // set s/w version on splash page
-  p0SWVersion.setText(Str);
+  if(GNexDisplayPresent)
+    p0SWVersion.setText(Str);
   GSplashCountdown = VFIVESECONDS;                  // ticks to stay in splash page
   GUpdateItem = 0;
 }
@@ -1018,23 +1133,24 @@ void SetStatusString(void)
   else
     strcpy(StatusString, "No Tune");
 
-  switch(GDisplayPage)
-  {
-    case eSplashPage:                              // startup splash page
-      break;
-    case eCrossedNeedlePage:                       // crossed needle VSWR page display
-      p1Status.setText(StatusString);
-      break;
-    case ePowerBargraphPage:                       // linear watts bargraph page display
-      p2Status.setText(StatusString);
-      break;
-    case eMeterPage:                               // analogue power meter
-      p3Status.setText(StatusString);
-      break;
-    case eEngineeringPage:                          // engineering page with raw ADC values
-      p4Status.setText(StatusString);
-      break;
-  }
+  if(GNexDisplayPresent)
+    switch(GDisplayPage)
+    {
+      case eSplashPage:                              // startup splash page
+        break;
+      case eCrossedNeedlePage:                       // crossed needle VSWR page display
+        p1Status.setText(StatusString);
+        break;
+      case ePowerBargraphPage:                       // linear watts bargraph page display
+        p2Status.setText(StatusString);
+        break;
+      case eMeterPage:                               // analogue power meter
+        p3Status.setText(StatusString);
+        break;
+      case eEngineeringPage:                          // engineering page with raw ADC values
+        p4Status.setText(StatusString);
+        break;
+    }
 }
 
 //
@@ -1052,6 +1168,7 @@ void LCD_UI_EncoderTick(bool OddEncoder)
 // NextionDisplayTick()
 // called from the LCD_UI_Tick() below
 // (separated to break the code up a bit)
+// this is only called if a display is present
 //
 void NextionDisplayTick(void)
 {
@@ -1069,40 +1186,48 @@ void NextionDisplayTick(void)
   nexLoop(nex_listen_list);
   switch(GDisplayPage)
   {
-    default:
-      page4.show();
-      GDisplayPage = eEngineeringPage;
-      GInitialisePage = true;
+    case eTransitioning:                            // do nothing if changing page
       break;
 
+      
     case  eSplashPage:                              // startup splash - nothing to add to display
       if(GSplashCountdown-- <= 0)
       {
+        // if amp protection already tripped, go straight to tripped screen
+        // otherwise go to correct "normal" page
         InitialPage = EEReadPage();
-        if(InitialPage == 4)                  // choose the operating page from eeprom stored value
+        if(GIsTripped)              
+        {
+          GDisplayPageBeforeTrip = (EDisplayPage)InitialPage;       // set page to come back to
+          page6.show();
+//          GDisplayPage = eTripPage;
+//          GInitialisePage = true;
+        }
+        else if(InitialPage == 4)                  // choose the operating page from eeprom stored value
         {
           page4.show();
-          GDisplayPage = eEngineeringPage;
-          GInitialisePage = true;
+//          GDisplayPage = eEngineeringPage;
+//          GInitialisePage = true;
         }
         else if(InitialPage == 3)
         {
           page3.show();
-          GDisplayPage = eMeterPage;
-          GInitialisePage = true;
+//          GDisplayPage = eMeterPage;
+//          GInitialisePage = true;
         }
         else if(InitialPage == 2)
         {
           page2.show();
-          GDisplayPage = ePowerBargraphPage;
-          GInitialisePage = true;
+//          GDisplayPage = ePowerBargraphPage;
+//          GInitialisePage = true;
         }
-        else
+        else if (InitialPage == 1)
         {
           page1.show();
-          GDisplayPage = eCrossedNeedlePage;
-          GInitialisePage = true;
+//          GDisplayPage = eCrossedNeedlePage;
+//          GInitialisePage = true;
         }
+        GDisplayPage = eTransitioning;
       }
       break;
 
@@ -1113,6 +1238,7 @@ void NextionDisplayTick(void)
       if(GInitialisePage == true)                     // load background pics
       {
         GInitialisePage = false;
+        p1Band.setText(GDisplayBandStrings[GBandDisplayed]);
         SetCrossedNeedleImages();                     // get correct display scales
         GDisplayedForward = -100;                     // set illegal display angles
         GDisplayedReverse = -100;
@@ -1217,6 +1343,7 @@ void NextionDisplayTick(void)
     case  ePowerBargraphPage:                         // bargraph page display
       if(GInitialisePage)
       {
+        p2Band.setText(GDisplayBandStrings[GBandDisplayed]);
         SetPeakButtonText();
         SetEnabledButtonText();
         SetBargraphImages();                            // get correct display scales
@@ -1259,6 +1386,7 @@ void NextionDisplayTick(void)
     case  eMeterPage:                                 // analogue meter page display
       if(GInitialisePage)
       {
+        p3Band.setText(GDisplayBandStrings[GBandDisplayed]);
         SetPeakButtonText();
         SetEnabledButtonText();
         SetMeterImages();                            // get correct display scales
@@ -1288,7 +1416,6 @@ void NextionDisplayTick(void)
 ////////////////////////////////////////////////
       
     case  eEngineeringPage:                           // engineering page display
-
       if(GInitialisePage)                       // initialise the controls not refreshed often
       {
         mysprintf(Str, GTunedFrequency10, false);
@@ -1314,7 +1441,7 @@ void NextionDisplayTick(void)
             }
             break;
       
-          case 1:                               // C Value
+          case 2:                               // C Value
             Value = GetCapacitance();
             if(GDisplayedC != Value)
             {
@@ -1324,7 +1451,7 @@ void NextionDisplayTick(void)
             }
             break;
       
-          case 2:                               // VSWR Value
+          case 4:                               // VSWR Value
             Value = (int)(GVSWR*10.0);
             if (GForwardPower == 0)
             {
@@ -1339,7 +1466,7 @@ void NextionDisplayTick(void)
             }
             break;
       
-          case 3:                               // power Value
+          case 6:                               // power Value
             if(GDisplayedPower != GForwardPower)
             {
               mysprintf(Str, GForwardPower, false);   
@@ -1348,7 +1475,7 @@ void NextionDisplayTick(void)
             }
             break;
       
-          case 4:                               // Vf Value
+          case 8:                               // Vf Value
             GetADCMeanAndPeak(true, &ADCMean, &ADCPeak);
             mysprintf(Str, ADCMean, false); 
             mysprintf(Str2, ADCPeak, false);
@@ -1357,7 +1484,7 @@ void NextionDisplayTick(void)
             p4VfValue.setText(Str);
             break;
       
-          case 5:                               // Vr Value
+          case 10:                               // Vr Value
             GetADCMeanAndPeak(false, &ADCMean, &ADCPeak);
             mysprintf(Str, ADCMean, false); 
             mysprintf(Str2, ADCPeak, false);
@@ -1366,7 +1493,7 @@ void NextionDisplayTick(void)
             p4VrValue.setText(Str);
             break;
       
-          case 6:                               // PTT & quick tune (won't change together)
+          case 12:                               // PTT & quick tune (won't change together)
             if(GDisplayedPTT != GPTTPressed)
             {
               GDisplayedPTT = GPTTPressed;
@@ -1385,11 +1512,11 @@ void NextionDisplayTick(void)
             }
             break;
       
-          case 7:                               // Status
+          case 14:                               // Status
             SetStatusString();
             break;
       
-          case 8:                               // High/Low z
+          case 16:                               // High/Low z
             ZValue = GetHiLoZ();
             if(GDisplayedZ != ZValue)
             {
@@ -1397,15 +1524,20 @@ void NextionDisplayTick(void)
               SetHighLowZButtonText();
             }
             break;
+
+          case 18:
+            mysprintf(Str, GPACurrent, true);   // 1dp
+            p4Current.setText(Str); 
+            break;
         }
-        if(GDisplayItem >= 8)
+        if(GDisplayItem >= 20)
           GDisplayItem = 0;
         else
           GDisplayItem++;
       }
       break;
 
-
+//////////////////////////////////////////////////////////
     case eSetupPage:
       if(GInitialisePage)                       // initialise the controls not refreshed often
       {
@@ -1418,6 +1550,44 @@ void NextionDisplayTick(void)
           p5AlgBtn.setText("Full");
         GInitialisePage = false;
       }
+      break;
+
+//////////////////////////////////////////////////////////////
+    case  eTripPage:                            // protection page display
+      if(GInitialisePage)
+        GDisplayItem = 0;
+      GInitialisePage = false;
+      if(((GTripInputBits>>(GDisplayItem>>1)) & 0b1) == 0b1)       // if trip bit set
+        strcpy(Str, "Tripped");
+      else
+        strcpy(Str, "OK");
+      
+      switch(GDisplayItem)
+      {
+        case 0:
+          p6VSWRTxt.setText(Str);
+          break;
+        case 2:
+          p6RevPwrTxt.setText(Str);
+          break;
+        case 4:
+          p6DrivePwrTxt.setText(Str);
+          break;
+        case 6:
+          p6TempTxt.setText(Str);
+          break;
+
+        case 8:
+          if(GTripInputBits == 0)
+            p6ResetBtn.setText("RESET");
+          else
+            p6ResetBtn.setText("tripped");
+          break;
+      }
+      if(GDisplayItem >= 12)                                      // allow some time for button presses
+        GDisplayItem = 0;
+      else
+        GDisplayItem++;
       break;
   }
 }
@@ -1493,9 +1663,8 @@ void LCD_UI_Tick(void)
 //
 // now update the display
 //
-#ifdef CONDITIONAL_UI_DISPLAY
-  NextionDisplayTick();
-#endif
+  if(GNexDisplayPresent)
+    NextionDisplayTick();
 }
 
 
@@ -1503,7 +1672,7 @@ void LCD_UI_Tick(void)
 // debug
 void ShowFrequency(char* FreqString)
 {
-  if(GDisplayPage == eEngineeringPage)
+  if((GDisplayPage == eEngineeringPage) && GNexDisplayPresent)
     p4FreqValue.setText(FreqString);
 }
 
@@ -1514,8 +1683,9 @@ void ShowTune()
 
 void ShowAntenna(int Antenna)
 {
-  char LocalStr[20];
-  if(GDisplayPage == eEngineeringPage)
+  char LocalStr[10];
+  LocalStr[0]=0;
+  if((GDisplayPage == eEngineeringPage) && GNexDisplayPresent)
   {
     mysprintf(LocalStr, Antenna, false);
     p4AntValue.setText(LocalStr);
@@ -1526,4 +1696,86 @@ void ShowATUEnabled(bool IsEnabled)
 {
   SetStatusString();
   SetEnabledButtonText();
+}
+
+
+
+//
+// PA protection
+//
+//  set or remove "PA tripped" screen
+//  (when this is use a display should always be present!)
+//
+void SetPATrippedScreen(bool Tripped)
+{
+  if(Tripped)                                   // if tripped, set page to the tripped page
+  {
+    if(GDisplayPage != eTripPage)
+    {
+      GDisplayPageBeforeTrip = GDisplayPage;    // store the page to come back to
+      GDisplayPage = eTransitioning;
+      page6.show();
+//      GDisplayPage = eTripPage;
+//      GInitialisePage = true;
+    }
+  }
+  else                                          // not tripped - revert
+  {
+    if(GDisplayPage == eTripPage)
+    // go to stored page that we were on before trip
+    {
+      if(GDisplayPageBeforeTrip == eMeterPage)
+        page3.show();
+      else if(GDisplayPageBeforeTrip == ePowerBargraphPage)
+        page2.show();
+      else if(GDisplayPageBeforeTrip == eCrossedNeedlePage)
+        page1.show();
+      else
+        page4.show();
+        GDisplayPage = eTransitioning;
+    }
+  }
+}
+
+
+
+//
+// set the band select bits (7 bits)
+// one bit should be high
+// bit0=6m; bit1= 10m; bit2 = 15m; bit3 - 20m; 
+// bit4 = 40m; bit5= 80m; bit6 = 160m.
+//
+void DisplayBandBits(byte InputBits)                              // update to which band selected
+{
+  byte NewBand = 0;
+  byte Cntr;
+  bool Found = false;
+//
+// convert to band number
+// loop through input bits to see if we bit a "1" bit
+
+  for(Cntr=0; Cntr < VNUMBANDS; Cntr++)
+  {
+    if(InputBits & 0b1)                                           // if we get a 1 bit, then we've found the band
+    {
+      NewBand = Cntr; 
+      Found=true;
+      break;
+    }
+    InputBits = InputBits >> 1;
+
+    if(Found == false)
+      NewBand = VNUMBANDS;
+  }
+  // now if the band is different display it
+  if((NewBand != GBandDisplayed) && GNexDisplayPresent)
+  {
+    GBandDisplayed = NewBand;
+    if(GDisplayPage == eCrossedNeedlePage)
+      p1Band.setText(GDisplayBandStrings[GBandDisplayed]);
+    else if(GDisplayPage == ePowerBargraphPage)
+      p2Band.setText(GDisplayBandStrings[GBandDisplayed]);
+    else if(GDisplayPage == eMeterPage)
+      p3Band.setText(GDisplayBandStrings[GBandDisplayed]);
+  }
 }

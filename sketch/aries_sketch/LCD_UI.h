@@ -12,7 +12,9 @@
 #ifndef __lcd_ui_h
 #define __lcd_ui_h
 
+#include <Arduino.h>
 
+extern bool GNexDisplayPresent;             // set to true if a display detected
 
 //
 // this type enumerates the Nextion display pages:
@@ -24,7 +26,9 @@ enum EDisplayPage
   ePowerBargraphPage,                       // linear watts bargraph page display
   eMeterPage,                               // analogue power meter
   eEngineeringPage,                         // engineering page with raw ADC values
-  eSetupPage                                // setup page
+  eSetupPage,                               // setup page
+  eTripPage,                                // protection tripped page
+  eTransitioning                            // state to say we are transitioning pages
 };
 
 
@@ -65,5 +69,22 @@ void ShowTune();
 void ShowAntenna(int Antenna);
 void ShowATUEnabled(bool IsEnabled);
 
+
+//
+// PA protection
+//
+//  set or remove "PA tripped" screen
+//
+void SetPATrippedScreen(bool Tripped);
+
+
+
+//
+// set the band select bits (7 bits)
+// one bit should be high
+// bit0=6m; bit1= 10m; bit2 = 15m; bit3 - 20m; 
+// bit4 = 40m; bit5= 80m; bit6 = 160m.
+//
+void DisplayBandBits(byte BandBits);                              // update to which band selected
 
 #endif

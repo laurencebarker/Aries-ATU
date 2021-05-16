@@ -8,11 +8,23 @@
 // the code is written for an Arduino Nano 33 IoT module
 //
 // protect.h: amplifier protection code
-// this is an optional feature, enabled by #define AMPLIFIERPROTECTION 1 in globalinclude.h
+// this feature is detected by the initialisatino code finding the MCP23017 in thr I2C bus
 /////////////////////////////////////////////////////////////////////////
 #ifndef __protect_h
 #define __protect_h
 
+
+extern bool GProtectionPresent;            // becomes true of a device detected
+extern bool GIsTripped;                    // true if the PA has been tripped
+extern byte GTripInputBits;                // input bits with trip state 
+                                           // bit0=VSWR; bit1=rev power; bit2=drive power; bit3=temp               
+
+
+
+//
+// initialise protection
+//
+void InitProtection(void);
 
 
 //
@@ -28,6 +40,12 @@ void TripISR(void);
 //
 void ProtectionTick(void);
 
+
+
+//
+// function called when display RESET is pressed
+//
+void TripResetPressed(void);
 
 
 #endif

@@ -18,6 +18,7 @@
 #include "globalinclude.h"
 #include "LCD_UI.h"
 #include "cathandler.h"
+#include "protect.h"
 
 
 //
@@ -45,6 +46,8 @@ unsigned int GVf, GVr;                      // forward and reverse voltages (raw
 unsigned int GVFArray[VNUMADCAVG];          // circular buffer of Vf values
 unsigned int GVRArray[VNUMADCAVG];          // circular buffer of Vr values
 unsigned int GCircBufferPtr;                // current position to write to
+unsigned int GPACurrent;                    // PA current in 100mA units (1 decimal point)
+
 
 #define VHILOZBIT 0b00001000                // high low Z bit in SPI shift word
 
@@ -64,7 +67,7 @@ const float GADCScaleValues[] =
   0.087732                                  // 2000W: R12, R13=18K
 };
 
-
+#define VCURRENTSCALEFACTOR 0.051645        // to get current in 1/10A units (1dp)
 
 
 
@@ -111,10 +114,15 @@ void InitialiseHardwareDrivers(void)
 // if input LOW, jumper is inserted and we are in standalone mode.
 // this pin is also the SPI MISO pin, but works for digital in. 
 //
-  if(digitalRead(VPINSTANDALONEJUMPER) == HIGH)
-    GStandaloneMode = false;
+  if(HWVERSION >= 5)
+  {
+    if(digitalRead(VPINSTANDALONEJUMPER) == HIGH)
+      GStandaloneMode = false;
+    else
+      GStandaloneMode = true;
+  }
   else
-    GStandaloneMode = true;
+    GStandaloneMode = false;
 }
 
 
@@ -229,12 +237,18 @@ void HWDriverTick(void)
   float Unit;                                       // converted measurement
   float VFwd, VRev;                                 // forward, reverse line voltages
   int DisplayVSWR;                                  // values for display
-
+  int CurrentReading;
+  
   FwdVoltReading = analogRead(VPINVSWR_FWD);        // read forward power sensor (actually line volts)
   RevVoltReading = analogRead(VPINVSWR_REV);        // read reverse power sensor (actually line volts)
   GVf = FwdVoltReading;
   GVr = RevVoltReading;
 
+  if(GProtectionPresent)
+  {
+    CurrentReading = analogRead(VPINPACURRENT);       // read PA current sensor
+    GPACurrent = CurrentReading * VCURRENTSCALEFACTOR;     // 1 dp fixed point
+  }
 //
 // write values to circular buffer
 // adjust pointer first
@@ -329,7 +343,7 @@ byte GSPIShiftSettings[VNUMSHIFTBYTES];
 //
 // assert tuning solution to relays
 // send the current TR strobe, antenna, inductor and capacitor settings to SPI
-// there is apotential race condition that could lead to a "resend"
+// there is a potential race condition that could lead to a "resend"
 // essentially this is just a big unidirectional shift register (we don't need the read reply)
 // we want SPI mode 0, MSB first, unknown rate
 //
@@ -365,12 +379,13 @@ void DriveSolution(void)
   GSPIShiftInProgress = false;
   
 // on rev 4 and below hardware, drive out the high/low Z bit on DIG8
-#ifndef HWREV5
-  if(StoredHiLoZ == true)
-    digitalWrite(VPINRELAYLOHIZ, HIGH);     // high Z
-  else
-   digitalWrite(VPINRELAYLOHIZ, LOW);     // low Z
-#endif
+  if(HWVERSION <= 4)
+  {
+    if(StoredHiLoZ == true)
+      digitalWrite(VPINRELAYLOHIZ, HIGH);     // high Z
+    else
+     digitalWrite(VPINRELAYLOHIZ, LOW);     // low Z
+  }
 }
 
 //

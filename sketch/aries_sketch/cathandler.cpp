@@ -620,17 +620,16 @@ void HandleRXAntennaChange(int Antenna)
 //
 void HandleTXAntennaChange(int Antenna)
 {
-  if((Antenna >= 1) && (Antenna <= 3))
+  if((Antenna >= 1) && (Antenna <= 4))
   {
     if(Antenna != GTXAntenna)
     {
       GTXAntenna = Antenna;
       SetAntennaSPI(Antenna, false);                                      // send new antenna setting to SPI
       SetupForNewAntenna();                                               // find solution etc
+      ShowAntenna(Antenna);
     }
-    
   }
-    ShowAntenna(Antenna);
 }
 
 
@@ -659,9 +658,6 @@ void HandleLCFineTune(int Command)
   int CurrentC;
   byte Knob;
   byte Steps;
-  Serial.print ("command=");
-  Serial.print(Command);
-  Serial.println();
   CurrentL = GetInductance();
   CurrentC = GetCapacitance();
   Knob = Command / 10;                                  // encoder number (1,2,51,52)

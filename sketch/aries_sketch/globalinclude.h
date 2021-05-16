@@ -16,21 +16,11 @@
 //
 // hardware and software version: send back to console on request
 //
-#define SWVERSION 9
-#define HWVERSION 1
+#define SWVERSION 10
+#define HWVERSION 5
 #define PRODUCTID 2                 // Aries
 
 
-//
-// define for PCB hardware version. Define this variable if h/w is REV5 or above
-//
-#define HWREV5 1
-
-
-//
-// define for Amplifier protection. Define this variable is amplifier protection to be included.
-//
-#define AMPLIFIERPROTECTION 1
 
 
 //
@@ -40,16 +30,11 @@
 //#define VSWR_SWAPVFVR 1
 
 
-//
-// define this variable if the Nextion Display is to be used
-//
-#define CONDITIONAL_UI_DISPLAY 1
-
 
 //
 // define this variable if algorithm debug messages are to be printed
 //
-#define CONDITIONAL_ALG_DEBUG 1
+//#define CONDITIONAL_ALG_DEBUG 1
 
 
 //

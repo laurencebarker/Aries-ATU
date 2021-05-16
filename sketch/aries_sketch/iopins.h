@@ -44,4 +44,7 @@
 #define VPINVSWR_REV A1               // analogue input
 #endif //VSWR_SWAPVFVR
 
+// for variants with amplifier protection mode:
+#define VPINPACURRENT A6              // analogue input
+
 #endif //not defined
