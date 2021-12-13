@@ -108,21 +108,6 @@ void InitialiseHardwareDrivers(void)
 
   DriveSolution();
   GCircBufferPtr = 0;
-
-//
-// finally read the standalone mode jumper.
-// if input LOW, jumper is inserted and we are in standalone mode.
-// this pin is also the SPI MISO pin, but works for digital in. 
-//
-  if(HWVERSION >= 5)
-  {
-    if(digitalRead(VPINSTANDALONEJUMPER) == HIGH)
-      GStandaloneMode = false;
-    else
-      GStandaloneMode = true;
-  }
-  else
-    GStandaloneMode = false;
 }
 
 

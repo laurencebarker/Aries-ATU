@@ -298,7 +298,8 @@ void ParseCATCmd(void)
 //
 void SendCATMessage(char* Msg)
 {
-  CATSERIAL.print(Msg);
+  if(CATSERIAL)
+    CATSERIAL.print(Msg);
 }
 
 

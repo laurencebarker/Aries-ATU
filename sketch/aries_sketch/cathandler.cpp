@@ -81,78 +81,6 @@ int GLocalSearch[] =
 
 
 
-//
-// EEPROM access test
-// perform a few reads and writes to verify EEPROM access works OK
-// 
-void EETest(void)
-{
-  byte WriteStatus, ReadStatus;
-  byte Cntr;
-//byte WriteData[]={255,255, 255, 255, 255};
-  byte WriteData[]={5,6,7,8,9};
-  byte ReadData[16];
-
-  Serial.println("Starting");
-  
-//  WriteStatus = myEEPROM.write(65536, WriteData, 5);
-
-  Serial.println("Reading address 0");
-  ReadStatus = myEEPROM.read(0, ReadData, 10);
-  for (Cntr=0; Cntr < 10; Cntr++)
-  {
-    Serial.print("addr: ");
-    Serial.print(Cntr);
-    Serial.print(" data = ");
-    Serial.println(ReadData[Cntr]);
-  }
-
-  Serial.println("Reading address 65536");
-  ReadStatus = myEEPROM.read(65536, ReadData, 10);
-
-  for (Cntr=0; Cntr < 10; Cntr++)
-  {
-    Serial.print("addr: ");
-    Serial.print(Cntr+65536);
-    Serial.print(" data = ");
-    Serial.println(ReadData[Cntr]);
-  }
-}
-
-
-//
-// EEPROM read access test
-// perform a few reads and writes to verify EEPROM access works OK
-// 
-void EERead(void)
-{
-  byte ReadStatus;
-  byte Cntr;
-  byte ReadData[16];
-
-  Serial.println("Starting");
-  
-  Serial.println("Reading address 2109");
-  ReadStatus = myEEPROM.read(2109, ReadData, 10);
-  for (Cntr=0; Cntr < 10; Cntr++)
-  {
-    Serial.print("addr: ");
-    Serial.print(Cntr);
-    Serial.print(" data = ");
-    Serial.println(ReadData[Cntr]);
-  }
-
-  Serial.println("Reading address 2145");
-  ReadStatus = myEEPROM.read(2145, ReadData, 10);
-  for (Cntr=0; Cntr < 10; Cntr++)
-  {
-    Serial.print("addr: ");
-    Serial.print(Cntr);
-    Serial.print(" data = ");
-    Serial.println(ReadData[Cntr]);
-  }
-
-}
 
 
 //
@@ -162,12 +90,10 @@ void EERead(void)
 void InitCATHandler(void)
 {
   byte i2cStat = myEEPROM.begin(myEEPROM.twiClock400kHz);
-  if ( i2cStat != 0 ) 
-  {
-    Serial.println(F("I2C Problem"));
-  }
-//  EETest();
-//  EERead();
+//  if ( i2cStat != 0 ) 
+//  {
+//    Serial.println(F("I2C Problem"));
+//  }
 
 // initialise algorithm operation: select whether quick tune always allowed
 
@@ -900,13 +826,16 @@ void CatHandlerTick()
 //
   if(GStandaloneMode)                                     // in standalone mode, poll for frequency
   {
-    if(GFreqPollTicks == 0)                               // if timed out, reload & send msg
+    if(Serial)
     {
-      GFreqPollTicks = VFREQPOLLINTERVAL;
-      MakeCATMessageNoParam(eZZFT);                       // TX freq request
+      if(GFreqPollTicks == 0)                               // if timed out, reload & send msg
+      {
+        GFreqPollTicks = VFREQPOLLINTERVAL;
+        MakeCATMessageNoParam(eZZFT);                       // TX freq request
+      }
+      else
+        GFreqPollTicks--;
     }
-    else
-      GFreqPollTicks--;
 
     if(digitalRead(VPINSTANDALONEANTA) == LOW)
       AntennaSelect |= 1;

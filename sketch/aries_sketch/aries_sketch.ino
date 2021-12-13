@@ -39,18 +39,38 @@ bool GTickTriggered;                        // true if a 16ms tick has been trig
 
 void setup() 
 {
-  Serial.begin(9600);               // PC communication
-//
-// removed the "wait for serial before starting"
-  while (!Serial)                   // wait for it to be ready 
-  {
-    ;
-  }
 //
 // configure I/O pins
 //
   ConfigIOPins();
   delay(1000);                        // wait 1s, in case of a race for the Nextion display to be ready
+//
+// read the standalone mode jumper.
+// if input LOW, jumper is inserted and we are in standalone mode.
+// this pin is also the SPI MISO pin, but works for digital in. 
+//
+  if(HWVERSION >= 5)
+  {
+    if(digitalRead(VPINSTANDALONEJUMPER) == HIGH)
+      GStandaloneMode = false;
+    else
+      GStandaloneMode = true;
+  }
+  else
+    GStandaloneMode = false;
+
+  
+  Serial.begin(9600);               // PC communication
+//
+// removed the "wait for serial before starting" if standalone
+//
+  if(!GStandaloneMode)
+  {
+    while (!Serial)                   // wait for it to be ready 
+    {
+      ;
+    }
+  }
 //
 // initialise hardware drivers (relays etc)
 //
