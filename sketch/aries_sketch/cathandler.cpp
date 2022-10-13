@@ -149,9 +149,9 @@ void MakeTuneSuccessMessage(bool Result)
     MakeCATMessageBool(eZZOX,Result);
   GValidSolution = Result;
   if(Result)                                      // set "tuned" LED lit if good
-    digitalWrite(VPINBLINKLED, LOW);
+    digitalWrite(VPINTUNELED, LOW);
   else
-    digitalWrite(VPINBLINKLED, HIGH);
+    digitalWrite(VPINTUNELED, HIGH);
 
 
 }
