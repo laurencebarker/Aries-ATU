@@ -24,7 +24,7 @@
 #define VPINPTT 10                    // PTT input. 0 = TX.  !will need to set an interrupt!
 #define VPINSERIALLOAD 6              // latch serial data output 
 #define VPINTUNELED 7                     // status LED (note the normal D13 LED pin used for SPI)
-#define VPINBLINKLED 7
+#define VPINBLINKLED A7
 #define VPINHWTUNECMD 9               // hardwire TUNE input, if used
 
 // alternate uses for this pin - #defined as required
