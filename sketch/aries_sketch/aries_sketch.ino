@@ -146,9 +146,9 @@ void loop()
       Counter=31;
       ledOn = !ledOn;
       if (ledOn)
-        digitalWrite(VPINLED, HIGH); // Led on, off, on, off...
+        digitalWrite(VPINBLINKLED, HIGH); // Led on, off, on, off...
       else
-        digitalWrite(VPINLED, LOW);
+        digitalWrite(VPINBLINKLED, LOW);
     }
     else
       Counter--;
@@ -199,7 +199,8 @@ void ConfigIOPins(void)
   pinMode(VPINTR_PTTOUT, OUTPUT);
   pinMode(VPINSERIALLOAD, OUTPUT);                      // serial data latch o/p
   pinMode(VPINPTT, INPUT_PULLUP);                       // PTT input
-  pinMode(VPINLED, OUTPUT);                             // status LED (normal D13 ise used for SPI)
+  pinMode(VPINBLINKLED, OUTPUT);                        // status LED (normal D13 ise used for SPI)
+  pinMode(VPINTUNELED, OUTPUT);                         // tune LED (lit if good tune solution)
 
   pinMode(VPINHWTUNECMD, INPUT_PULLUP);                 // hardwired TUNE command input
   pinMode(VPINSTANDALONEJUMPER, INPUT_PULLUP);          // jumper input for STANDALONE

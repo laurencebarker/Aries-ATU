@@ -148,6 +148,12 @@ void MakeTuneSuccessMessage(bool Result)
   if(GATUEnabled)
     MakeCATMessageBool(eZZOX,Result);
   GValidSolution = Result;
+  if(Result)                                      // set "tuned" LED lit if good
+    digitalWrite(VPINBLINKLED, LOW);
+  else
+    digitalWrite(VPINBLINKLED, HIGH);
+
+
 }
 
 
